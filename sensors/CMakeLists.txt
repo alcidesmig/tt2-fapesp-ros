@@ -204,3 +204,10 @@ include_directories(
 
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
+
+
+add_executable(temp src/temp.cpp)
+target_link_libraries(temp ${catkin_LIBRARIES})
+
+add_executable(airspeed src/airspeed.cpp)
+target_link_libraries(airspeed ${catkin_LIBRARIES})

@@ -11,7 +11,6 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   mavros_msgs
   roscpp
-  rospy
   std_msgs
 )
 
@@ -207,13 +206,15 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-add_executable(test2 src/test2.cpp)
-target_link_libraries(test2 ${catkin_LIBRARIES})
-#add_dependencies(test2 sensors_generate_messages_cpp)
+add_executable(offboard_test src/offboard_test.cpp)
+target_link_libraries(offboard_test ${catkin_LIBRARIES})
+
 add_executable(airspeed src/airspeed.cpp)
 target_link_libraries(airspeed ${catkin_LIBRARIES})
+
 add_executable(temp src/temp.cpp)
 target_link_libraries(temp ${catkin_LIBRARIES})
+
 add_executable(get_pos src/get_pos.cpp)
 target_link_libraries(get_pos ${catkin_LIBRARIES})
 

@@ -1,19 +1,28 @@
+// edit of https://roboticsbackend.com/roscpp-timer-with-ros-publish-data-at-a-fixed-rate/
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
 #include <vector>
 #include <numeric>
+#include <sys/ioctl.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <linux/i2c-dev.h>
+#include <linux/i2c.h>
+#include <boost/bind.hpp>
 
-const float CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C = 1.225f;
-const float CONSTANTS_AIR_GAS_CONST = 287.1f;
-const float CONSTANTS_ABSOLUTE_NULL_CELSIUS = -273.15f;
+float CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C = 1.225;
+float CONSTANTS_AIR_GAS_CONST = 287.1;
+float CONSTANTS_ABSOLUTE_NULL_CELSIUS = -273.15;
 static int fd;
 
 class AirSpeedSensor
 {
 public:
-    const float P_min = -1.0f;
-    const float P_max = 1.0f;
-    const float PSI_to_Pa = 6894.757f;
+
     AirSpeedSensor(ros::NodeHandle *nh)
     {
         // Initialize airspeed, i2c and ROS publisher
@@ -25,23 +34,24 @@ public:
     float calc_indicated_airspeed(float differential_pressure)
     {
 
-        if (differential_pressure > 0.0f)
+        if (differential_pressure > 0.0)
         {
-            return sqrtf((2.0f * differential_pressure) / CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C);
+            return sqrtf((2.0 * differential_pressure) / CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C);
 
         }
         else
         {
-            return -sqrtf((2.0f * fabsf(differential_pressure)) / CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C);
+            return -sqrtf((2.0 * fabsf(differential_pressure)) / CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C);
         }
 
     }
-    float calc_true_airspeed_from_indicated(float speed_indicated, float pressure_ambient, float temperature_celsius)
-    {
-        float get_air_density(float static_pressure, float temperature_celsius)
+    float get_air_density(float static_pressure, float temperature_celsius)
         {
             return static_pressure / (CONSTANTS_AIR_GAS_CONST * (temperature_celsius - CONSTANTS_ABSOLUTE_NULL_CELSIUS));
         }
+    float calc_true_airspeed_from_indicated(float speed_indicated, float pressure_ambient, float temperature_celsius)
+    {
+        
         return speed_indicated * sqrtf(CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C / get_air_density(pressure_ambient,
                                        temperature_celsius));
     }
@@ -76,15 +86,20 @@ public:
             std_msgs::Float64 msg;
             msg.data = airspeed;
             airspeedPublisher.publish(msg);
-        } else {
+        }
+        else
+        {
             std_msgs::Float64 msg;
-            msg.data = -1f;
+            msg.data = -1.0;
             airspeedPublisher.publish(msg);
         }
     }
 private:
     double airspeed;
     ros::Publisher airspeedPublisher;
+    static const float P_min = -1.0;
+    static const float P_max = 1.0;
+    static const float PSI_to_Pa = 6894.757;
 };
 int main(int argc, char **argv)
 {
@@ -95,10 +110,10 @@ int main(int argc, char **argv)
     // Create a ROS timer for reading data
     ros::Timer timerReadAirspeed =
         nh.createTimer(ros::Duration(1.0 / 100.0),
-                       std::bind(&AirSpeedSensor::readAirSpeedSensorData, airspeedSensor));
+                       boost::bind(&AirSpeedSensor::readAirSpeedSensorData, airspeedSensor));
     // Create a ROS timer for publishing temperature
     ros::Timer timerPublishAirspeed =
         nh.createTimer(ros::Duration(1.0 / 10.0),
-                       std::bind(&AirSpeedSensor::publishAirspeed, airspeedSensor));
+                       boost::bind(&AirSpeedSensor::publishAirspeed, airspeedSensor));
     ros::spin();
 }

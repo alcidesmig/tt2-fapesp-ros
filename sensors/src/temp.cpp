@@ -13,6 +13,9 @@
 #include <linux/i2c-dev.h>
 #include <linux/i2c.h>
 #include <pthread.h>
+#include <boost/bind.hpp>
+
+static int fd;
 
 unsigned short i2c_read(unsigned char addr, unsigned char reg, int delay)
 {
@@ -25,7 +28,7 @@ unsigned short i2c_read(unsigned char addr, unsigned char reg, int delay)
     buf[0] = reg;
     msgs[0].addr = addr;
     msgs[0].flags = 0;
-    msgs[0].buf = (void *)buf;
+    msgs[0].buf = buf;
     msgs[0].len = 1;
 
     r = ioctl(fd, I2C_RDWR, &msgset);
@@ -35,7 +38,7 @@ unsigned short i2c_read(unsigned char addr, unsigned char reg, int delay)
 
     msgs[0].addr = addr;
     msgs[0].flags = I2C_M_RD;
-    msgs[0].buf = (void *)buf;
+    msgs[0].buf = buf;
     msgs[0].len = 2;
 
     r = ioctl(fd, I2C_RDWR, &msgset);
@@ -44,7 +47,7 @@ unsigned short i2c_read(unsigned char addr, unsigned char reg, int delay)
     return buf[0] * 256 + buf[1];
 }
 
-static int fd;
+
 
 class TemperatureSensor
 {
@@ -79,7 +82,7 @@ public:
             temperaturePublisher.publish(msg);
         } else {
             std_msgs::Float64 msg;
-            msg.data = -1f;
+            msg.data = -1;
             temperaturePublisher.publish(msg);
         }
     }
@@ -97,10 +100,10 @@ int main(int argc, char **argv)
     // Create a ROS timer for reading data
     ros::Timer timerReadTemperature =
         nh.createTimer(ros::Duration(1.0 / 100.0),
-                       std::bind(&TemperatureSensor::readTemperatureSensorData, temperatureSensor));
+                       boost::bind(&TemperatureSensor::readTemperatureSensorData, temperatureSensor));
     // Create a ROS timer for publishing temperature
     ros::Timer timerPublishTemperature =
         nh.createTimer(ros::Duration(1.0 / 10.0),
-                       std::bind(&TemperatureSensor::publishTemperature, temperatureSensor));
+                       boost::bind(&TemperatureSensor::publishTemperature, temperatureSensor));
     ros::spin();
 }

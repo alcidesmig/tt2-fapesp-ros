@@ -214,5 +214,7 @@ add_executable(airspeed src/airspeed.cpp)
 target_link_libraries(airspeed ${catkin_LIBRARIES})
 add_executable(temp src/temp.cpp)
 target_link_libraries(temp ${catkin_LIBRARIES})
+add_executable(get_pos src/get_pos.cpp)
+target_link_libraries(get_pos ${catkin_LIBRARIES})
 
 

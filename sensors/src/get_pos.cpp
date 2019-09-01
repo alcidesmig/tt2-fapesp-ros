@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "get_drone_position");
     ros::NodeHandle nh;
 
-    ros::Subscriber state_sub = nh.subscribe<geometry_msgs::PoseStamped>
+    ros::Subscriber pos_sub = nh.subscribe<geometry_msgs::PoseStamped>
             ("mavros/local_position/pose", 10, print_pos);
     
     ros::Rate rate(20.0);

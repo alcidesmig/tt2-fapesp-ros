@@ -9,6 +9,8 @@
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
+#include <mavros_msgs/WaypointReached.h>
+#include <stdlib.h>
 
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
@@ -22,10 +24,16 @@ void get_pos(const geometry_msgs::PoseStamped::ConstPtr &msg)
     pos = *msg;
 }
 
+mavros_msgs::WaypointReached waypoint_num;
+void get_waypoint(const mavros_msgs::WaypointReached::ConstPtr &msg)
+{
+    waypoint_num = *msg;
+}
 
-int status = 0;
+
+int status = -1;
 double start_zero = -1;
-
+int last_waypoint = -1;
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "offb_node");
@@ -41,9 +49,11 @@ int main(int argc, char **argv)
                                          ("mavros/set_mode");
     ros::Subscriber pos_sub = nh.subscribe<geometry_msgs::PoseStamped>
                               ("mavros/local_position/pose", 10, get_pos);
+    ros::Subscriber waypoint_sub = nh.subscribe<mavros_msgs::WaypointReached>
+                                   ("mavros/mission/reached", 10, get_waypoint);
 
     //the setpoint publishing rate MUST be faster than 2Hz
-    ros::Rate rate(20.0);
+    ros::Rate rate(100.0);
 
     // wait for FCU connection
     while(ros::ok() && !current_state.connected)
@@ -67,26 +77,42 @@ int main(int argc, char **argv)
 
     mavros_msgs::SetMode offb_set_mode;
     offb_set_mode.request.custom_mode = "OFFBOARD";
-
+    offb_set_mode.request.base_mode = 0;
     mavros_msgs::CommandBool arm_cmd;
     arm_cmd.request.value = true;
 
     ros::Time last_request = ros::Time::now();
 
+    last_waypoint = waypoint_num.wp_seq;
+    ROS_INFO_STREAM("First value for waypoint_num:" << waypoint_num.wp_seq);
+
     while(ros::ok())
     {
+        if(last_waypoint != waypoint_num.wp_seq && status == -1)
+        {
+            last_waypoint = waypoint_num.wp_seq;
+            status = 0;
+            ROS_INFO_STREAM("Waypoint reached:" << waypoint_num.wp_seq);
+
+            pose.pose.position.x = pos.pose.position.x;
+            pose.pose.position.y = pos.pose.position.y;
+            pose.pose.position.z = pos.pose.position.z + 2;
+        }
         if(status == 0)
         {
-            if( current_state.mode != "OFFBOARD" && (ros::Time::now() - last_request > ros::Duration(5.0)))
+            if( current_state.mode != "OFFBOARD" && (ros::Time::now() - last_request > ros::Duration(1.0)))
             {
                 if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
                 {
                     ROS_INFO("Offboard enabled");
+                    system("rosservice call /mavros/set_mode 0 \"OFFBOARD\""); // Gambiarra para solucionar problema (a ser tratado)
                     start_zero = ros::Time::now().toSec();
                 }
+                ROS_INFO_STREAM("Mode: " << current_state.mode);
+
 
                 last_request = ros::Time::now();
-            }
+            }/*
             else
             {
                 if( !current_state.armed && (ros::Time::now() - last_request > ros::Duration(5.0)))
@@ -97,10 +123,11 @@ int main(int argc, char **argv)
                     }
                     last_request = ros::Time::now();
                 }
-            }
+            }*/
             if(start_zero != -1 && ros::Time::now().toSec() - start_zero > ros::Duration(10).toSec())
             {
                 status = 1;
+                start_zero = -1;
             }
             local_pos_pub.publish(pose);
         }
@@ -110,11 +137,10 @@ int main(int argc, char **argv)
             if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
             {
                 ROS_INFO("Collect data: ok\nMission enabled");
-                status = 2;
+                status = -1;
             }
-
-
         }
+
 
         ros::spinOnce();
         rate.sleep();

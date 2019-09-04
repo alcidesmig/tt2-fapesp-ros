@@ -126,7 +126,12 @@ int main(int argc, char **argv)
                 status = -1;
             }
         }
-     
+      for(int i = 100; ros::ok() && i > 0; --i)
+           {
+               local_pos_pub.publish(pose);
+             //  ros::spinOnce();
+               rate.sleep();
+           }
 
         ros::spinOnce();
         rate.sleep();

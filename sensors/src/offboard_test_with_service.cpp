@@ -11,7 +11,7 @@
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/WaypointReached.h>
 #include <stdlib.h>
-
+#include <string.h>
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
 {
@@ -95,26 +95,12 @@ int main(int argc, char **argv)
         }
         if(status == 0)
         {
-            if( current_state.mode != "OFFBOARD" && (ros::Time::now() - last_request > ros::Duration(1.0)))
+            offb_set_mode.request.custom_mode = "OFFBOARD";
+            if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
             {
-
-                if(set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
-                {
-                    ROS_INFO("Offboard enabled");
-                    //system("rosservice call /mavros/set_mode 0 \"OFFBOARD\""); // Gambiarra para solucionar problema (a ser tratado)
-                    start_zero = ros::Time::now().toSec();
-
-                }
-                ROS_INFO_STREAM("Mode: " << current_state.mode);
-
-                last_request = ros::Time::now();
+                ROS_INFO("SWITCHED TO OFFBOARD");
             }
-            if(start_zero != -1 && ros::Time::now().toSec() - start_zero > ros::Duration(10).toSec())
-            {
-                status = 1;
-                start_zero = -1;
-            }
-            local_pos_pub.publish(pose);
+            if((current_state.mode == "OFFBOARD")) status = 1;
         }
         else if (status == 1 && current_state.mode != "AUTO.MISSION")
         {

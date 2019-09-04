@@ -32,7 +32,7 @@ void get_waypoint(const mavros_msgs::WaypointReached::ConstPtr &msg)
 
 
 int status = -1;
-double start_zero = -1;
+double offboard_enabled = -1;
 int last_waypoint = -1;
 int main(int argc, char **argv)
 {
@@ -96,11 +96,19 @@ int main(int argc, char **argv)
         if(status == 0)
         {
             offb_set_mode.request.custom_mode = "OFFBOARD";
-            if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
+            if(current_state.mode != "OFFBOARD" && set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
             {
-                ROS_INFO("SWITCHED TO OFFBOARD");
+                ROS_INFO("Trying to switch to Offboard mode");
             }
-            if((current_state.mode == "OFFBOARD")) status = 1;
+            if(current_state.mode == "OFFBOARD" && offboard_enabled == -1)
+            {
+                ROS_INFO("Offboard enabled");
+                offboard_enabled = ros::Time::now().toSec();
+            }
+            if(offboard_enabled != -1 && ros::Time::now().toSec() - offboard_enabled > 10)
+            {
+                status = 1;
+            }
         }
         else if (status == 1 && current_state.mode != "AUTO.MISSION")
         {
@@ -108,16 +116,18 @@ int main(int argc, char **argv)
             if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
             {
                 ROS_INFO("Collect data: ok");
-                   ROS_INFO("Mission enabled");
+                ROS_INFO("AUTO.PILOT = MISSION enabled");
                 status = -1;
             }
+            offboard_enabled = -1;
         }
-      for(int i = 100; ros::ok() && i > 0; --i)
-           {
-               local_pos_pub.publish(pose);
-             //  ros::spinOnce();
-               rate.sleep();
-           }
+
+        for(int i = 100; ros::ok() && i > 0; --i)
+        {
+            local_pos_pub.publish(pose);
+            //ros::spinOnce();
+            rate.sleep();
+        }
 
         ros::spinOnce();
         rate.sleep();
@@ -126,11 +136,11 @@ int main(int argc, char **argv)
     return 0;
 }
 
-    /*   //send a few setpoints before starting
+/*   //send a few setpoints before starting
 
-           for(int i = 100; ros::ok() && i > 0; --i)
-           {
-               local_pos_pub.publish(pose);
-               ros::spinOnce();
-               rate.sleep();
-           }*/
+       for(int i = 100; ros::ok() && i > 0; --i)
+       {
+           local_pos_pub.publish(pose);
+           ros::spinOnce();
+           rate.sleep();
+       }*/

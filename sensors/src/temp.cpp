@@ -65,7 +65,7 @@ public:
         try
         {
             double i2c_value = i2c_read(0x40, 0, 20000); // 0 = temperature, 1 = humidity
-            temperature = i2c_value * (165.0 / 65536.0) - 40;
+            temperature = i2c_value * (165.0 / 65536.0) - 40; //transferir umidade
             return true;
         }
         catch (int e)

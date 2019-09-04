@@ -53,7 +53,8 @@ int main(int argc, char **argv)
                                    ("mavros/mission/reached", 10, get_waypoint);
 
     //the setpoint publishing rate MUST be faster than 2Hz
-    ros::Rate rate(100.0);
+    ros::Rate rate(50.0);
+
 
     // wait for FCU connection
     while(ros::ok() && !current_state.connected)
@@ -66,14 +67,6 @@ int main(int argc, char **argv)
     pose.pose.position.x = pos.pose.position.x;
     pose.pose.position.y = pos.pose.position.y;
     pose.pose.position.z = pos.pose.position.z + 2;
-
-    //send a few setpoints before starting
-    for(int i = 100; ros::ok() && i > 0; --i)
-    {
-        local_pos_pub.publish(pose);
-        ros::spinOnce();
-        rate.sleep();
-    }
 
     mavros_msgs::SetMode offb_set_mode;
     offb_set_mode.request.custom_mode = "OFFBOARD";
@@ -100,30 +93,21 @@ int main(int argc, char **argv)
         }
         if(status == 0)
         {
+            local_pos_pub.publish(pose);
             if( current_state.mode != "OFFBOARD" && (ros::Time::now() - last_request > ros::Duration(1.0)))
             {
-                if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
+
+                if(set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
                 {
                     ROS_INFO("Offboard enabled");
-                    system("rosservice call /mavros/set_mode 0 \"OFFBOARD\""); // Gambiarra para solucionar problema (a ser tratado)
+                    //system("rosservice call /mavros/set_mode 0 \"OFFBOARD\""); // Gambiarra para solucionar problema (a ser tratado)
                     start_zero = ros::Time::now().toSec();
+
                 }
                 ROS_INFO_STREAM("Mode: " << current_state.mode);
 
-
                 last_request = ros::Time::now();
-            }/*
-            else
-            {
-                if( !current_state.armed && (ros::Time::now() - last_request > ros::Duration(5.0)))
-                {
-                    if( arming_client.call(arm_cmd) && arm_cmd.response.success)
-                    {
-                        ROS_INFO("Vehicle armed");
-                    }
-                    last_request = ros::Time::now();
-                }
-            }*/
+            }
             if(start_zero != -1 && ros::Time::now().toSec() - start_zero > ros::Duration(10).toSec())
             {
                 status = 1;
@@ -136,11 +120,12 @@ int main(int argc, char **argv)
             offb_set_mode.request.custom_mode = "AUTO.MISSION";
             if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
             {
-                ROS_INFO("Collect data: ok\nMission enabled");
+                ROS_INFO("Collect data: ok");
+                   ROS_INFO("Mission enabled");
                 status = -1;
             }
         }
-
+     
 
         ros::spinOnce();
         rate.sleep();
@@ -149,3 +134,11 @@ int main(int argc, char **argv)
     return 0;
 }
 
+    /*   //send a few setpoints before starting
+
+           for(int i = 100; ros::ok() && i > 0; --i)
+           {
+               local_pos_pub.publish(pose);
+               ros::spinOnce();
+               rate.sleep();
+           }*/

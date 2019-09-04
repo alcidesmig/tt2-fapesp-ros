@@ -90,10 +90,11 @@ int main(int argc, char **argv)
             pose.pose.position.x = pos.pose.position.x;
             pose.pose.position.y = pos.pose.position.y;
             pose.pose.position.z = pos.pose.position.z + 2;
+            local_pos_pub.publish(pose);
+
         }
         if(status == 0)
         {
-            local_pos_pub.publish(pose);
             if( current_state.mode != "OFFBOARD" && (ros::Time::now() - last_request > ros::Duration(1.0)))
             {
 

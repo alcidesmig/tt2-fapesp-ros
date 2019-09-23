@@ -5,6 +5,7 @@
 #include <numeric>
 #include <sys/ioctl.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -29,6 +30,8 @@ public:
         airspeed = 0.0;
         airspeedPublisher =
             nh->advertise<std_msgs::Float64>("/airspeed", 10);
+    	fd = open("/dev/i2c-1", O_RDWR);
+
     }
 
     float calc_indicated_airspeed(float differential_pressure)
@@ -97,9 +100,9 @@ public:
 private:
     double airspeed;
     ros::Publisher airspeedPublisher;
-    static const float P_min = -1.0;
-    static const float P_max = 1.0;
-    static const float PSI_to_Pa = 6894.757;
+    static constexpr float P_min = -1.0;
+    static constexpr float P_max = 1.0;
+    static constexpr float PSI_to_Pa = 6894.757;
 };
 int main(int argc, char **argv)
 {

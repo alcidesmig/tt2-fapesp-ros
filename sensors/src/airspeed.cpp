@@ -100,9 +100,9 @@ public:
 private:
     double airspeed;
     ros::Publisher airspeedPublisher;
-    static constexpr float P_min = -1.0;
-    static constexpr float P_max = 1.0;
-    static constexpr float PSI_to_Pa = 6894.757;
+    float P_min = -1.0;
+    float P_max = 1.0;
+    float PSI_to_Pa = 6894.757;
 };
 int main(int argc, char **argv)
 {

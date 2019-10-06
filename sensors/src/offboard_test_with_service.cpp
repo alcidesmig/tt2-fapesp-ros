@@ -133,59 +133,57 @@ int main(int argc, char **argv)
 
             if(current_state.mode == "OFFBOARD")
             {
-                while(status != 1)
+
+
+                if(pos.pose.position.z - 2 < 0.3 && pos.pose.position.z - 2 > -0.3 && !collecting && current_state.mode == "OFFBOARD")   // Se chegou a 2m de altura (tolerância = 0.3m), começa a coletar os dados
                 {
-
-
-                    if(pos.pose.position.z - 2 < 0.3 && !collecting && current_state.mode == "OFFBOARD")   // Se chegou a 2m de altura (tolerância = 0.3m), começa a coletar os dados
-                    {
-                        ROS_INFO("Chegou 2m");
-                        collecting = 1; // Coletando = SIM
-                        value_quaternion = 0; // Valor para ser usado para calcular o Quaternion
-                        cont_spin = 0; // Quantidade de vezes que passou pelo mesmo ponto
-                        collecting_5m = 0; // Garantir o valor correto para variável
-                        //inicial_compass = compass.data; // Posição de início de coleta de dados
-                    }
-
-                    if(collecting && compass.data < 3)   // Verifica o ponto que está passando
-                    {
-                        cont_spin++; // Conta a quantidade de vezes que passou por um ponto < 3
-                        if(cont_spin == 2 && !collecting_5m)   // Se passou duas vezes pelo mesmo ponto, deu pelo menos uma volta coletando dados
-                        {
-                            collecting = 0; // Para de coletar
-                            cont_spin = 0; // Zera a contagem
-                            pose.pose.position.z = 5; // Enviar o drone para 5m de altura
-                            collecting_5m = 1; // Flag para saber se está na coleta de dados na altura de 5m ou 2m
-                        }
-                        if(cont_spin == 2 && collecting_5m)   // Se coletou dados nos 5m de altura
-                        {
-                            status = 1; // Finaliza a coleta de dados
-                        }
-                    }
-
-                    if(collecting_5m && !(pos.pose.position.z - 5 < 0.3))   // Se chegou a 5m de altura (tolerância = 0.3m), começa a coletar os dados
-                    {
-                        collecting = 1; // Inicia a coleta de dados (5m de altura)
-                    }
-
-                    if(collecting)
-                    {
-                        ROS_INFO("Collecting");
-                        aux_rotate_tf = tf::createQuaternionFromYaw((++value_quaternion / 25)); // Valor (Quaternion) para rotação
-                        quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
-                        pose.pose.orientation = aux_rotate_geometry; // Seta o valor da rotação para o Pose, para ser enviado para o drone
-                        local_pos_pub.publish(pose);
-
-                    }
-
-                    /*
-                    if(offboard_enabled != -1 && ros::Time::now().toSec() - offboard_enabled > 10)
-                    {
-                        status = 1;
-                    }
-                    */
-                    rate.sleep();
+                    ROS_INFO("Chegou 2m");
+                    collecting = 1; // Coletando = SIM
+                    value_quaternion = 0; // Valor para ser usado para calcular o Quaternion
+                    cont_spin = 0; // Quantidade de vezes que passou pelo mesmo ponto
+                    collecting_5m = 0; // Garantir o valor correto para variável
+                    //inicial_compass = compass.data; // Posição de início de coleta de dados
                 }
+                ROS_INFO("Compass: %f", compass.data);
+                if(collecting && compass.data < 3)   // Verifica o ponto que está passando
+                {
+                    cont_spin++; // Conta a quantidade de vezes que passou por um ponto < 3
+                    if(cont_spin == 2 && !collecting_5m)   // Se passou duas vezes pelo mesmo ponto, deu pelo menos uma volta coletando dados
+                    {
+                        collecting = 0; // Para de coletar
+                        cont_spin = 0; // Zera a contagem
+                        pose.pose.position.z = 5; // Enviar o drone para 5m de altura
+                        collecting_5m = 1; // Flag para saber se está na coleta de dados na altura de 5m ou 2m
+                    }
+                    if(cont_spin == 2 && collecting_5m)   // Se coletou dados nos 5m de altura
+                    {
+                        status = 1; // Finaliza a coleta de dados
+                        collecting = 0;
+                    }
+                }
+
+                if(collecting_5m && (pos.pose.position.z - 5 < 0.3 && pos.pose.position.z - 5 > -0.3))   // Se chegou a 5m de altura (tolerância = 0.3m), começa a coletar os dados
+                {
+                    collecting = 1; // Inicia a coleta de dados (5m de altura)
+                }
+
+                if(collecting)
+                {
+                    ROS_INFO("Collecting");
+                    aux_rotate_tf = tf::createQuaternionFromYaw((++value_quaternion / 25)); // Valor (Quaternion) para rotação
+                    quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
+                    pose.pose.orientation = aux_rotate_geometry; // Seta o valor da rotação para o Pose, para ser enviado para o drone
+                    local_pos_pub.publish(pose);
+
+                }
+
+                /*
+                if(offboard_enabled != -1 && ros::Time::now().toSec() - offboard_enabled > 10)
+                {
+                    status = 1;
+                }
+                */
+
             }
         }
         else if (status == 1 && current_state.mode != "AUTO.MISSION")
@@ -200,15 +198,20 @@ int main(int argc, char **argv)
             offboard_enabled = -1;
         }
 
-        for(int i = 100; ros::ok() && i > 0; --i)
+
+        if(!collecting)
         {
-            local_pos_pub.publish(pose);
-            //ros::spinOnce();
-            rate.sleep();
+            for(int i = 100; ros::ok() && i > 0; --i)
+            {
+                local_pos_pub.publish(pose);
+                //ros::spinOnce();
+                rate.sleep();
+            }
         }
 
         ros::spinOnce();
         rate.sleep();
+
     }
 
     return 0;

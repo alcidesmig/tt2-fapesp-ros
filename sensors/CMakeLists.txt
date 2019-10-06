@@ -218,6 +218,9 @@ target_link_libraries(temp ${catkin_LIBRARIES})
 add_executable(get_pos src/get_pos.cpp)
 target_link_libraries(get_pos ${catkin_LIBRARIES})
 
+add_executable(rotine src/rotine.cpp)
+target_link_libraries(rotine ${catkin_LIBRARIES})
+
 add_executable(offboard_test_from_pos src/offboard_test_from_pos.cpp)
 target_link_libraries(offboard_test_from_pos ${catkin_LIBRARIES})
 

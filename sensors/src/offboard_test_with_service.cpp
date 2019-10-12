@@ -26,6 +26,8 @@
 
 #include <math.h>
 
+#define FILENAME "/tmp/data.txt"
+
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
 {
@@ -50,6 +52,18 @@ void get_compass_value(const std_msgs::Float64::ConstPtr &msg)
     compass = *msg;
 }
 
+std_msgs::Float64 temperature;
+void get_temperature_value(const std_msgs::Float64::ConstPtr &msg)
+{
+    temperature = *msg;
+}
+
+std_msgs::Float64 airspeed;
+void get_airspeed_value(const std_msgs::Float64::ConstPtr &msg)
+{
+    airspeed = *msg;
+}
+
 
 double offboard_enabled = -1;
 int value_quaternion, collecting, cont_spin, collecting_5m, last_waypoint = -1, status = -1, can_compare_for_loop = 0;
@@ -59,14 +73,21 @@ geometry_msgs::Quaternion aux_rotate_geometry;
 geometry_msgs::PoseStamped pose;
 double compass_diff = 0;
 double yaw_compass_start_value;
-
+FILE *fp;
 
 
 void *thread_func_set_pos(void *args)
 {
     ros::NodeHandle nh;
+    // Publicação do Pose
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
                                    ("mavros/setpoint_position/local", 1);
+    // Sensor de temperatura
+    ros::Subscriber temperature_sub = nh.subscribe<std_msgs::Float64>
+                                      ("temperature", 10, get_waypoint);
+    // Sensor de airspeed
+    ros::Subscriber airspeed_sub = nh.subscribe<std_msgs::Float64>
+                                   ("airspeed", 10, get_waypoint);
     ros::Rate rate(72.0);
     while(ros::ok())
     {
@@ -77,6 +98,7 @@ void *thread_func_set_pos(void *args)
             aux_rotate_tf = tf::createQuaternionFromYaw(value_quat2); // Valor (Quaternion) para rotação
             quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
             pose.pose.orientation = aux_rotate_geometry; // Seta o valor da rotação para o Pose, para ser enviado para o drone
+            if(fp != NULL) fprintf(fp, "%f;%f;%f\n", temperature.data, airspeed.data, compass.data);
         }
         local_pos_pub.publish(pose);
         ros::spinOnce();
@@ -172,6 +194,8 @@ int main(int argc, char **argv)
                 ROS_INFO_STREAM("Waypoint reached:" << waypoint_num.wp_seq);
                 pose.pose.position.x = pos.pose.position.x;
                 pose.pose.position.y = pos.pose.position.y;
+                fp = fopen(FILENAME, "a+");
+                fprintf(fp, "Waypoint: %d", last_waypoint);
             }
             break;
         case 0:
@@ -215,8 +239,10 @@ int main(int argc, char **argv)
                     {
                         status = 1; // Finaliza a coleta de dados
                         collecting_5m = 0;
+                        fp = NULL;
+                        fclose(fp);
                     }
-                    if(!collecting_5m && status != 1)  
+                    if(!collecting_5m && status != 1)
                     {
                         pose.pose.position.z = 5; // Enviar o drone para 5m de altura
                         collecting_5m = 1; // Flag para saber se está na coleta de dados na altura de 5m ou 2m
@@ -227,7 +253,8 @@ int main(int argc, char **argv)
                 // Se chegou a 5m de altura (tolerância = 0.3m), começa a coletar os dados
                 if(collecting_5m && (pos.pose.position.z - 5 < 0.3 && pos.pose.position.z - 5 > -0.3))
                 {
-                    if(!collecting) {
+                    if(!collecting)
+                    {
                         yaw_compass_start_value = compass.data;
                         collecting = 1; // Inicia a coleta de dados (5m de altura)
                     }

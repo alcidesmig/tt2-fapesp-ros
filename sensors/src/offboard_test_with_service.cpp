@@ -89,7 +89,7 @@ double diff(double x, double y) {
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "offb_node");
+    ros::init(argc, argv, "drone_node");
 
     ros::NodeHandle nh;
 

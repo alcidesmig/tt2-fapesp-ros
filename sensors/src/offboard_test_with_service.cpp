@@ -70,7 +70,8 @@ void *thread_func_set_pos(void *args)
     ros::Rate rate(72.0);
     while(ros::ok())
     {
-        if(collecting) {
+        if(collecting)
+        {
             ROS_INFO("Collecting");
             value_quat2 += 0.01745329251; // 2*pi / 360
             aux_rotate_tf = tf::createQuaternionFromYaw(value_quat2); // Valor (Quaternion) para rotação
@@ -83,7 +84,8 @@ void *thread_func_set_pos(void *args)
     }
 }
 
-double diff(double x, double y) {
+double diff(double x, double y)
+{
     return abs(x - y);
 }
 
@@ -93,19 +95,26 @@ int main(int argc, char **argv)
 
     ros::NodeHandle nh;
 
+    // Publicação do Pose
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
                                    ("mavros/setpoint_position/local", 10);
 
+    // Status do drone
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
                                 ("mavros/state", 10, state_cb);
+    // Armar o drone
     ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>
                                        ("mavros/cmd/arming");
+    // Mudar o modo do drone
     ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>
                                          ("mavros/set_mode");
+    // Pegar a posição do drone
     ros::Subscriber pos_sub = nh.subscribe<geometry_msgs::PoseStamped>
                               ("mavros/local_position/pose", 10, get_pos);
+    // Acompanhar a chegada em waypoints
     ros::Subscriber waypoint_sub = nh.subscribe<mavros_msgs::WaypointReached>
                                    ("mavros/mission/reached", 10, get_waypoint);
+    // Dados da bússola
     ros::Subscriber compass_sub = nh.subscribe<std_msgs::Float64>
                                   ("mavros/global_position/compass_hdg", 1, get_compass_value);
 
@@ -147,25 +156,25 @@ int main(int argc, char **argv)
     ros::Time last_request = ros::Time::now();
 
     // Último waypoint -> comparar com o atual para mudança de estado
-    last_waypoint = waypoint_num.wp_seq;
+    last_waypoint = -1;//waypoint_num.wp_seq;
     ROS_INFO_STREAM("First value for waypoint_num:" << waypoint_num.wp_seq);
 
     while(ros::ok())
     {
-        if(last_waypoint != waypoint_num.wp_seq && status == -1) // Verifica se chegou em um waypoint comparando o último que foi registrado com o atual
+        switch(status)
         {
-            last_waypoint = waypoint_num.wp_seq;
-            status = 0;
-            ROS_INFO_STREAM("Waypoint reached:" << waypoint_num.wp_seq);
-
-            pose.pose.position.x = pos.pose.position.x;
-            pose.pose.position.y = pos.pose.position.y;
-            pose.pose.position.z = 2;
-            local_pos_pub.publish(pose);
-
-        }
-        if(status == 0)
-        {
+        case -1:
+            // Verifica se chegou em um waypoint comparando o último que foi registrado com o atual
+            if(last_waypoint != waypoint_num.wp_seq)
+            {
+                last_waypoint = waypoint_num.wp_seq;
+                status = 0;
+                ROS_INFO_STREAM("Waypoint reached:" << waypoint_num.wp_seq);
+                pose.pose.position.x = pos.pose.position.x;
+                pose.pose.position.y = pos.pose.position.y;
+            }
+            break;
+        case 0:
             offb_set_mode.request.custom_mode = "OFFBOARD";
             if(current_state.mode != "OFFBOARD" && set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent) // Se não estiver no OFFBOARD -> tente colocar
             {
@@ -183,7 +192,7 @@ int main(int argc, char **argv)
             {
 
                 // Se chegou a 2m de altura (tolerância = 0.3m), começa a coletar os dados
-                if(pos.pose.position.z - 2 < 0.3 && pos.pose.position.z - 2 > -0.3 && !collecting && current_state.mode == "OFFBOARD")   
+                if(!collecting_5m && pos.pose.position.z - 2 < 0.3 && pos.pose.position.z - 2 > -0.3 && !collecting && current_state.mode == "OFFBOARD")
                 {
                     ROS_INFO("Chegou 2m");
                     value_quat2 = 0; // Zera o valor do quaternion utilizado na thread
@@ -197,39 +206,40 @@ int main(int argc, char **argv)
 
                 ROS_INFO("Compass: %f Diff: %f", compass.data, compass.data - compass_diff);
                 compass_diff = compass.data;
-
-                // Verifica se o drone já fez meia volta, para saber se pode começar a comparar o valor atual com o valor de início da rotação
-
-                if(collecting && diff(yaw_compass_start_value, fmod(compass.data + 180.0, 360.0)) < 10.0) { 
-                    can_compare_for_loop = 1;
-                }
-
-                // Se chegou a 5m de altura (tolerância = 0.3m), começa a coletar os dados
-                if(collecting_5m && (pos.pose.position.z - 5 < 0.3 && pos.pose.position.z - 5 > -0.3))   
+                ROS_INFO("Diferença: %f cancompare = %d", diff(yaw_compass_start_value, compass.data), can_compare_for_loop);
+                // Compara a posição (bússola) atual com a posição de início caso o drone já tenha dado meia volta
+                if(collecting && can_compare_for_loop && diff(yaw_compass_start_value, compass.data) < 3)
                 {
-                    collecting = 1; // Inicia a coleta de dados (5m de altura)
-                }
-
-                // Compara a posição (bússula) atual com a posição de início caso o drone já tenha dado meia volta
-                if(collecting && can_compare_for_loop && diff(yaw_compass_start_value, compass.data) < 3) 
-                {
+                    collecting = 0; // Para de coletar
                     if(collecting_5m)   // Se coletou dados nos 5m de altura
                     {
-                        collecting = 0;
                         status = 1; // Finaliza a coleta de dados
                         collecting_5m = 0;
                     }
-                    if(!collecting_5m && status != 1)   // Se passou duas vezes pelo mesmo ponto, deu pelo menos uma volta coletando dados
+                    if(!collecting_5m && status != 1)  
                     {
-                        collecting = 0; // Para de coletar
-                        cont_spin = 0; // Zera a contagem
                         pose.pose.position.z = 5; // Enviar o drone para 5m de altura
                         collecting_5m = 1; // Flag para saber se está na coleta de dados na altura de 5m ou 2m
+                        can_compare_for_loop = 0;
                     }
                 }
-                
-                
 
+                // Se chegou a 5m de altura (tolerância = 0.3m), começa a coletar os dados
+                if(collecting_5m && (pos.pose.position.z - 5 < 0.3 && pos.pose.position.z - 5 > -0.3))
+                {
+                    if(!collecting) {
+                        yaw_compass_start_value = compass.data;
+                        collecting = 1; // Inicia a coleta de dados (5m de altura)
+                    }
+                }
+
+                // Verifica se o drone já fez meia volta, para saber se pode começar a comparar o valor atual com o valor de início da rotação
+                if(collecting && diff(yaw_compass_start_value, fmod(compass.data + 180.0, 360.0)) < 10.0)
+                {
+                    can_compare_for_loop = 1;
+                    ROS_INFO("Now can compare for loop");
+
+                }
 
                 // collecting agora é utilizado pela thread_func_set_pos
 
@@ -251,28 +261,24 @@ int main(int argc, char **argv)
                 */
 
             }
-        }
-        else if (status == 1 && current_state.mode != "AUTO.MISSION")
-        {
-            offb_set_mode.request.custom_mode = "AUTO.MISSION";
-            if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
+            break;
+        case 1:
+            // Seta o modo de voo como AUTO.MISSION (seguir a missão carregada)
+            if (current_state.mode != "AUTO.MISSION")
             {
-                ROS_INFO("Collect data: ok");
-                ROS_INFO("AUTO.PILOT = MISSION enabled");
-                status = -1;
+                offb_set_mode.request.custom_mode = "AUTO.MISSION";
+                if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
+                {
+                    ROS_INFO("Collect data: ok");
+                    ROS_INFO("AUTO.PILOT = MISSION enabled");
+                    status = -1;
+                }
+                offboard_enabled = -1;
             }
-            offboard_enabled = -1;
-        }
+            break;
+        default:
+            break;
 
-
-        if(!collecting)
-        {
-            for(int i = 100; ros::ok() && i > 0; --i)
-            {
-                local_pos_pub.publish(pose);
-                //ros::spinOnce();
-                rate.sleep();
-            }
         }
 
         ros::spinOnce();
@@ -282,12 +288,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
-/*   //send a few setpoints before starting
-
-       for(int i = 100; ros::ok() && i > 0; --i)
-       {
-           local_pos_pub.publish(pose);
-           ros::spinOnce();
-           rate.sleep();
-       }*/

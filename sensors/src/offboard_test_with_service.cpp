@@ -84,10 +84,10 @@ void *thread_func_set_pos(void *args)
                                    ("mavros/setpoint_position/local", 1);
     // Sensor de temperatura
     ros::Subscriber temperature_sub = nh.subscribe<std_msgs::Float64>
-                                      ("temperature", 10, get_waypoint);
+                                      ("temperature", 1, get_temperature_value);
     // Sensor de airspeed
     ros::Subscriber airspeed_sub = nh.subscribe<std_msgs::Float64>
-                                   ("airspeed", 10, get_waypoint);
+                                   ("airspeed", 1, get_airspeed_value);
     ros::Rate rate(72.0);
     while(ros::ok())
     {
@@ -230,7 +230,7 @@ int main(int argc, char **argv)
 
                 ROS_INFO("Compass: %f Diff: %f", compass.data, compass.data - compass_diff);
                 compass_diff = compass.data;
-                ROS_INFO("Diferença: %f cancompare = %d", diff(yaw_compass_start_value, compass.data), can_compare_for_loop);
+                
                 // Compara a posição (bússola) atual com a posição de início caso o drone já tenha dado meia volta
                 if(collecting && can_compare_for_loop && diff(yaw_compass_start_value, compass.data) < 3)
                 {

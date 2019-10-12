@@ -41,9 +41,8 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "drone_node");
 
-    // Publicação do Pose
-    ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
-                                   ("mavros/setpoint_position/local", 1);
+    ros::NodeHandle nh;
+
     // Sensor de temperatura
     ros::Subscriber temperature_sub = nh.subscribe<std_msgs::Float64>
                                       ("temperature", 1, get_temperature_value);
@@ -63,7 +62,7 @@ int main(int argc, char **argv)
             fclose(fp);
             fp = fopen(FILENAME, "ab+");
             if(fp == NULL) {
-                return;
+                return 0;
             }
         }
         fprintf(fp, "%f;%f;%f\n", temperature.data, airspeed.data, compass.data);

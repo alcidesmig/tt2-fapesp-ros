@@ -24,6 +24,8 @@
 
 #include <pthread.h>
 
+#include <math.h>
+
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
 {
@@ -50,13 +52,13 @@ void get_compass_value(const std_msgs::Float64::ConstPtr &msg)
 
 
 double offboard_enabled = -1;
-int value_quaternion, collecting, cont_spin, collecting_5m, last_waypoint = -1, status = -1;
+int value_quaternion, collecting, cont_spin, collecting_5m, last_waypoint = -1, status = -1, can_compare_for_loop = 0;
 double value_quat2 = 0.01745329251;
 tf::Quaternion aux_rotate_tf;
 geometry_msgs::Quaternion aux_rotate_geometry;
 geometry_msgs::PoseStamped pose;
-
-
+double compass_diff = 0;
+double yaw_compass_start_value;
 
 
 
@@ -65,13 +67,24 @@ void *thread_func_set_pos(void *args)
     ros::NodeHandle nh;
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
                                    ("mavros/setpoint_position/local", 1);
-    ros::Rate rate(100.0);
+    ros::Rate rate(72.0);
     while(ros::ok())
     {
+        if(collecting) {
+            ROS_INFO("Collecting");
+            value_quat2 += 0.01745329251; // 2*pi / 360
+            aux_rotate_tf = tf::createQuaternionFromYaw(value_quat2); // Valor (Quaternion) para rotação
+            quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
+            pose.pose.orientation = aux_rotate_geometry; // Seta o valor da rotação para o Pose, para ser enviado para o drone
+        }
         local_pos_pub.publish(pose);
         ros::spinOnce();
-       // rate.sleep();
+        rate.sleep();
     }
+}
+
+double diff(double x, double y) {
+    return abs(x - y);
 }
 
 int main(int argc, char **argv)
@@ -100,7 +113,7 @@ int main(int argc, char **argv)
 
 
     // Setpoint publishing rate (precisa ser > 2Hz)
-    ros::Rate rate(72.0); // 360/5 = 72
+    ros::Rate rate(100.0); // 360/5 = 72
 
 
     // Espera conexão
@@ -134,7 +147,7 @@ int main(int argc, char **argv)
     ros::Time last_request = ros::Time::now();
 
     // Último waypoint -> comparar com o atual para mudança de estado
-    last_waypoint = -1;//waypoint_num.wp_seq;
+    last_waypoint = waypoint_num.wp_seq;
     ROS_INFO_STREAM("First value for waypoint_num:" << waypoint_num.wp_seq);
 
     while(ros::ok())
@@ -169,40 +182,58 @@ int main(int argc, char **argv)
             if(current_state.mode == "OFFBOARD")
             {
 
-
-                if(pos.pose.position.z - 2 < 0.3 && pos.pose.position.z - 2 > -0.3 && !collecting && current_state.mode == "OFFBOARD")   // Se chegou a 2m de altura (tolerância = 0.3m), começa a coletar os dados
+                // Se chegou a 2m de altura (tolerância = 0.3m), começa a coletar os dados
+                if(pos.pose.position.z - 2 < 0.3 && pos.pose.position.z - 2 > -0.3 && !collecting && current_state.mode == "OFFBOARD")   
                 {
                     ROS_INFO("Chegou 2m");
-                    collecting = 1; // Coletando = SIM
+                    value_quat2 = 0; // Zera o valor do quaternion utilizado na thread
+                    yaw_compass_start_value = compass.data; // Posição de início de coleta de dados
                     value_quaternion = 0; // Valor para ser usado para calcular o Quaternion
-                    value_quat2 = 0;
                     cont_spin = 0; // Quantidade de vezes que passou pelo mesmo ponto
                     collecting_5m = 0; // Garantir o valor correto para variável
-                    //inicial_compass = compass.data; // Posição de início de coleta de dados
+                    can_compare_for_loop = 0; // Variável que permite saber quando a comparação para conhecimento da volta pode ser realizada
+                    collecting = 1; // Coletando = SIM
                 }
-                ROS_INFO("Compass: %f", compass.data);
-                if(collecting && compass.data < 3)   // Verifica o ponto que está passando
+
+                ROS_INFO("Compass: %f Diff: %f", compass.data, compass.data - compass_diff);
+                compass_diff = compass.data;
+
+                // Verifica se o drone já fez meia volta, para saber se pode começar a comparar o valor atual com o valor de início da rotação
+
+                if(collecting && diff(yaw_compass_start_value, fmod(compass.data + 180.0, 360.0)) < 10.0) { 
+                    can_compare_for_loop = 1;
+                }
+
+                // Se chegou a 5m de altura (tolerância = 0.3m), começa a coletar os dados
+                if(collecting_5m && (pos.pose.position.z - 5 < 0.3 && pos.pose.position.z - 5 > -0.3))   
                 {
-                    cont_spin++; // Conta a quantidade de vezes que passou por um ponto < 3
-                    if(cont_spin == 2 && !collecting_5m)   // Se passou duas vezes pelo mesmo ponto, deu pelo menos uma volta coletando dados
+                    collecting = 1; // Inicia a coleta de dados (5m de altura)
+                }
+
+                // Compara a posição (bússula) atual com a posição de início caso o drone já tenha dado meia volta
+                if(collecting && can_compare_for_loop && diff(yaw_compass_start_value, compass.data) < 3) 
+                {
+                    if(collecting_5m)   // Se coletou dados nos 5m de altura
+                    {
+                        collecting = 0;
+                        status = 1; // Finaliza a coleta de dados
+                        collecting_5m = 0;
+                    }
+                    if(!collecting_5m && status != 1)   // Se passou duas vezes pelo mesmo ponto, deu pelo menos uma volta coletando dados
                     {
                         collecting = 0; // Para de coletar
                         cont_spin = 0; // Zera a contagem
                         pose.pose.position.z = 5; // Enviar o drone para 5m de altura
                         collecting_5m = 1; // Flag para saber se está na coleta de dados na altura de 5m ou 2m
                     }
-                    if(cont_spin == 2 && collecting_5m)   // Se coletou dados nos 5m de altura
-                    {
-                        status = 1; // Finaliza a coleta de dados
-                        collecting = 0;
-                    }
                 }
+                
+                
 
-                if(collecting_5m && (pos.pose.position.z - 5 < 0.3 && pos.pose.position.z - 5 > -0.3))   // Se chegou a 5m de altura (tolerância = 0.3m), começa a coletar os dados
-                {
-                    collecting = 1; // Inicia a coleta de dados (5m de altura)
-                }
 
+                // collecting agora é utilizado pela thread_func_set_pos
+
+                /*
                 if(collecting)
                 {
                     ROS_INFO("Collecting");
@@ -210,10 +241,8 @@ int main(int argc, char **argv)
                     aux_rotate_tf = tf::createQuaternionFromYaw(value_quat2); // Valor (Quaternion) para rotação
                     quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
                     pose.pose.orientation = aux_rotate_geometry; // Seta o valor da rotação para o Pose, para ser enviado para o drone
-                    local_pos_pub.publish(pose);
-
                 }
-
+                */
                 /*
                 if(offboard_enabled != -1 && ros::Time::now().toSec() - offboard_enabled > 10)
                 {

@@ -118,7 +118,7 @@ int main(int argc, char **argv)
             }
         }
 
-        tf::Quaternion x = tf::createQuaternionFromYaw((++i / 25));
+        tf::Quaternion x = tf::createQuaternionFromYaw(++i / 25);
         /*if(rot.data == <>)
         {
             flag = 0;

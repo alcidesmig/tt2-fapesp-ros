@@ -22,6 +22,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <pthread.h>
+
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
 {
@@ -46,21 +48,43 @@ void get_compass_value(const std_msgs::Float64::ConstPtr &msg)
     compass = *msg;
 }
 
-int status = -1;
+
 double offboard_enabled = -1;
-int last_waypoint = -1;
-int value_quaternion, collecting, cont_spin, collecting_5m;
+int value_quaternion, collecting, cont_spin, collecting_5m, last_waypoint = -1, status = -1;
+double value_quat2 = 0.01745329251;
 tf::Quaternion aux_rotate_tf;
 geometry_msgs::Quaternion aux_rotate_geometry;
+geometry_msgs::PoseStamped pose;
+
+
+
+
+
+void *thread_func_set_pos(void *args)
+{
+    ros::NodeHandle nh;
+    ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
+                                   ("mavros/setpoint_position/local", 1);
+    ros::Rate rate(100.0);
+    while(ros::ok())
+    {
+        local_pos_pub.publish(pose);
+        ros::spinOnce();
+       // rate.sleep();
+    }
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "offb_node");
+
     ros::NodeHandle nh;
+
+    ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
+                                   ("mavros/setpoint_position/local", 10);
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
                                 ("mavros/state", 10, state_cb);
-    ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
-                                   ("mavros/setpoint_position/local", 10);
     ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>
                                        ("mavros/cmd/arming");
     ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>
@@ -70,36 +94,47 @@ int main(int argc, char **argv)
     ros::Subscriber waypoint_sub = nh.subscribe<mavros_msgs::WaypointReached>
                                    ("mavros/mission/reached", 10, get_waypoint);
     ros::Subscriber compass_sub = nh.subscribe<std_msgs::Float64>
-                                  ("mavros/global_position/compass_hdg", 10, get_compass_value);
+                                  ("mavros/global_position/compass_hdg", 1, get_compass_value);
 
 
 
 
-    //the setpoint publishing rate MUST be faster than 2Hz
-    ros::Rate rate(20.0);
+    // Setpoint publishing rate (precisa ser > 2Hz)
+    ros::Rate rate(72.0); // 360/5 = 72
 
 
-    // wait for FCU connection
+    // Espera conexão
     while(ros::ok() && !current_state.connected)
     {
         ros::spinOnce();
         rate.sleep();
     }
 
-    geometry_msgs::PoseStamped pose;
+    // Atualiza os dados do pose
+
     pose.pose.position.x = pos.pose.position.x;
     pose.pose.position.y = pos.pose.position.y;
-    pose.pose.position.z = pos.pose.position.z + 2;
+    pose.pose.position.z = pos.pose.position.z;
 
+    // Inicia a thread para envio da posição para o ROS
+
+    pthread_t thread_pose;
+    pthread_create(&(thread_pose), NULL, thread_func_set_pos, NULL);
+
+    // Drone mode
     mavros_msgs::SetMode offb_set_mode;
     offb_set_mode.request.custom_mode = "OFFBOARD";
     offb_set_mode.request.base_mode = 0;
+
+    // Armar o drone
     mavros_msgs::CommandBool arm_cmd;
     arm_cmd.request.value = true;
 
+    // Último request
     ros::Time last_request = ros::Time::now();
 
-    last_waypoint = waypoint_num.wp_seq;
+    // Último waypoint -> comparar com o atual para mudança de estado
+    last_waypoint = -1;//waypoint_num.wp_seq;
     ROS_INFO_STREAM("First value for waypoint_num:" << waypoint_num.wp_seq);
 
     while(ros::ok())
@@ -112,7 +147,7 @@ int main(int argc, char **argv)
 
             pose.pose.position.x = pos.pose.position.x;
             pose.pose.position.y = pos.pose.position.y;
-            pose.pose.position.z = /*pos.pose.position.z + */2;
+            pose.pose.position.z = 2;
             local_pos_pub.publish(pose);
 
         }
@@ -140,6 +175,7 @@ int main(int argc, char **argv)
                     ROS_INFO("Chegou 2m");
                     collecting = 1; // Coletando = SIM
                     value_quaternion = 0; // Valor para ser usado para calcular o Quaternion
+                    value_quat2 = 0;
                     cont_spin = 0; // Quantidade de vezes que passou pelo mesmo ponto
                     collecting_5m = 0; // Garantir o valor correto para variável
                     //inicial_compass = compass.data; // Posição de início de coleta de dados
@@ -170,7 +206,8 @@ int main(int argc, char **argv)
                 if(collecting)
                 {
                     ROS_INFO("Collecting");
-                    aux_rotate_tf = tf::createQuaternionFromYaw((++value_quaternion / 25)); // Valor (Quaternion) para rotação
+                    value_quat2 += 0.01745329251; // 2*pi / 360
+                    aux_rotate_tf = tf::createQuaternionFromYaw(value_quat2); // Valor (Quaternion) para rotação
                     quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
                     pose.pose.orientation = aux_rotate_geometry; // Seta o valor da rotação para o Pose, para ser enviado para o drone
                     local_pos_pub.publish(pose);

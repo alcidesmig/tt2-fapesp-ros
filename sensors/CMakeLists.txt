@@ -226,3 +226,6 @@ target_link_libraries(offboard_test_from_pos ${catkin_LIBRARIES})
 
 add_executable(offboard_test_with_service src/offboard_test_with_service.cpp)
 target_link_libraries(offboard_test_with_service ${catkin_LIBRARIES})
+
+add_executable(free_collect_data src/free_collect_data.cpp)
+target_link_libraries(free_collect_data ${catkin_LIBRARIES})

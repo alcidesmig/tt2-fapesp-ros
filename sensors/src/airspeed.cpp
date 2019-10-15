@@ -57,7 +57,8 @@ public:
         
         return speed_indicated * sqrtf(CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C / get_air_density(pressure_ambient,
                                        temperature_celsius));
-    }
+    } // pegar valor da pix para fazer a true airspeed
+    // compensação, gravar valor de airspeed sem velocidade do vento para descontar nos valores medidos posteriormente
     double readAirSpeedSensorData()
     {
         try

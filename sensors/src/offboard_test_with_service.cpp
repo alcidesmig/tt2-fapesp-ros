@@ -1,3 +1,13 @@
+// gravar indic e true airspeed, humidade, lat, long, timestamp  
+// fazer checagem dos sensores, do arquivo dentro do nó master, acender led = ok, piscar led = !ok
+// (ok) mudar para 10s a rotação 
+// quaternion para determinar parada, quando bater 2pi + offset
+// arrumar arquivo = segfault
+// tratar excessao do arquivo para n crashar ros
+// gravar o 0 do sensor de airspeed (true, indicated) para fazer compensação (tapar tubo quando ligar o sistema)
+
+// quarta manhã 8h usp2
+
 /**
  * @file offb_node.cpp
  * @brief Offboard control example node, written with MAVROS version 0.19.x, PX4 Pro Flight
@@ -67,13 +77,13 @@ void get_airspeed_value(const std_msgs::Float64::ConstPtr &msg)
 
 double offboard_enabled = -1;
 int value_quaternion, collecting, cont_spin, collecting_5m, last_waypoint = -1, status = -1, can_compare_for_loop = 0;
-double value_quat2 = 0.01745329251;
+double value_quat2 = 0.00872664625;
 tf::Quaternion aux_rotate_tf;
 geometry_msgs::Quaternion aux_rotate_geometry;
 geometry_msgs::PoseStamped pose;
 double compass_diff = 0;
 double yaw_compass_start_value;
-FILE *fp;
+FILE *fp = NULL;
 
 
 void *thread_func_set_pos(void *args)
@@ -94,11 +104,11 @@ void *thread_func_set_pos(void *args)
         if(collecting)
         {
             ROS_INFO("Collecting");
-            value_quat2 += 0.01745329251; // 2*pi / 360
+            value_quat2 += 0.00872664625; // 2*pi / 360 / 2
             aux_rotate_tf = tf::createQuaternionFromYaw(value_quat2); // Valor (Quaternion) para rotação
             quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
             pose.pose.orientation = aux_rotate_geometry; // Seta o valor da rotação para o Pose, para ser enviado para o drone
-            if(fp != NULL) fprintf(fp, "%f;%f;%f\n", temperature.data, airspeed.data, compass.data);
+            if(fprintf != NULL) fprintf(fp, "%f;%f;%f\n", temperature.data, airspeed.data, compass.data); // gravar indic e true airspeed, humidade, lat, long, timestamp
         }
         local_pos_pub.publish(pose);
         ros::spinOnce();
@@ -113,6 +123,7 @@ double diff(double x, double y)
 
 int main(int argc, char **argv)
 {
+
     ros::init(argc, argv, "drone_node");
 
     ros::NodeHandle nh;
@@ -141,11 +152,8 @@ int main(int argc, char **argv)
                                   ("mavros/global_position/compass_hdg", 1, get_compass_value);
 
 
-
-
     // Setpoint publishing rate (precisa ser > 2Hz)
     ros::Rate rate(100.0); // 360/5 = 72
-
 
     // Espera conexão
     while(ros::ok() && !current_state.connected)
@@ -178,7 +186,7 @@ int main(int argc, char **argv)
     ros::Time last_request = ros::Time::now();
 
     // Último waypoint -> comparar com o atual para mudança de estado
-    last_waypoint = -1;//waypoint_num.wp_seq;
+    last_waypoint = waypoint_num.wp_seq;
     ROS_INFO_STREAM("First value for waypoint_num:" << waypoint_num.wp_seq);
 
     while(ros::ok())
@@ -195,7 +203,7 @@ int main(int argc, char **argv)
                 pose.pose.position.x = pos.pose.position.x;
                 pose.pose.position.y = pos.pose.position.y;
                 fp = fopen(FILENAME, "a+");
-                fprintf(fp, "Waypoint: %d", last_waypoint);
+                if(fp != NULL) fprintf(fp, "Waypoint: %d\n", last_waypoint);
             }
             break;
         case 0:
@@ -230,7 +238,9 @@ int main(int argc, char **argv)
 
                 ROS_INFO("Compass: %f Diff: %f", compass.data, compass.data - compass_diff);
                 compass_diff = compass.data;
-                
+
+
+
                 // Compara a posição (bússola) atual com a posição de início caso o drone já tenha dado meia volta
                 if(collecting && can_compare_for_loop && diff(yaw_compass_start_value, compass.data) < 3)
                 {
@@ -239,8 +249,8 @@ int main(int argc, char **argv)
                     {
                         status = 1; // Finaliza a coleta de dados
                         collecting_5m = 0;
-                        fp = NULL;
                         fclose(fp);
+                        fp = NULL;
                     }
                     if(!collecting_5m && status != 1)
                     {

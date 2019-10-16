@@ -249,8 +249,8 @@ int main(int argc, char **argv)
     ros::Time last_request = ros::Time::now();
  
     // Gravar o 0 do sensor de airspeed
-    fp = fopen(filename, "a+");
-    if(fp != NULL) fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f)", airspeed.data, calc_true_airspeed_from_indicated(indicated_airspeed, pressure_ambient.fluid_pressure, temperature_airspeed.data));
+    fp = fopen(FILENAME, "a+");
+    if(fp != NULL) fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f)", airspeed.data, calc_true_airspeed_from_indicated(airspeed.data, pressure_ambient.fluid_pressure, temperature_airspeed.data));
     fclose(fp);
     fp = NULL;
     // Último waypoint -> comparar com o atual para mudança de estado

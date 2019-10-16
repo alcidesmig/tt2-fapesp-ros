@@ -119,6 +119,8 @@ int main(int argc, char **argv)
                     "%f;%f;%f;%f;%f;%f;%d\n", 
                     temperature.data, indicated_airspeed, true_airspeed, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
                 ); // gravar indic e true airspeed, humidade, lat, long, timestamp        }catch(...) {
+            }
+        }catch(...){
             ROS_INFO("ERROR - COLLECTING");
         }
         ros::spinOnce();

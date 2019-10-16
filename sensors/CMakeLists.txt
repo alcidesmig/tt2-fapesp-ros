@@ -230,3 +230,6 @@ target_link_libraries(offboard_test_with_service ${catkin_LIBRARIES})
 
 add_executable(free_collect_data src/free_collect_data.cpp)
 target_link_libraries(free_collect_data ${catkin_LIBRARIES})
+
+add_executable(temperature_airspeed src/temperature_airspeed.cpp)
+target_link_libraries(temperature_airspeed ${catkin_LIBRARIES})

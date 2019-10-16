@@ -28,8 +28,8 @@ public:
     {
         // Initialize airspeed, i2c and ROS publisher
         airspeed = 0.0;
-        airspeedPublisher =
-            nh->advertise<std_msgs::Float64>("/airspeed", 10);
+         temperature_airspeedPublisher =
+            nh->advertise<std_msgs::Float64>("/temperature_airspeed", 10);
     	fd = open("/dev/i2c-1", O_RDWR);
 
     }
@@ -89,14 +89,14 @@ public:
         if(readAirSpeedSensorData())
         {
             std_msgs::Float64 msg;
-            msg.data = airspeed;
-            airspeedPublisher.publish(msg);
+            msg.data = temp;
+            temperature_airspeedPublisher.publish(msg);
         }
         else
         {
             std_msgs::Float64 msg;
-            msg.data = -1.0;
-            airspeedPublisher.publish(msg);
+            msg.data = -111111;
+            temperature_airspeedPublisher.publish(msg);
         }
     }
 private:
@@ -110,7 +110,7 @@ private:
 };
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "airspeed");
+    ros::init(argc, argv, "temperature_airspeed");
     ros::NodeHandle nh;
     // Create an instance of Temperature sensor
     AirSpeedSensor airspeedSensor(&nh);

@@ -1,10 +1,13 @@
-// gravar indic e true airspeed, humidade, lat, long, timestamp  
+// (ok) gravar indic e true airspeed, humidade, lat, long, timestamp
 // fazer checagem dos sensores, do arquivo dentro do nó master, acender led = ok, piscar led = !ok
-// (ok) mudar para 10s a rotação 
-// quaternion para determinar parada, quando bater 2pi + offset
-// arrumar arquivo = segfault
-// tratar excessao do arquivo para n crashar ros
-// gravar o 0 do sensor de airspeed (true, indicated) para fazer compensação (tapar tubo quando ligar o sistema)
+// (ok) mudar para 10s a rotação
+// (ok) quaternion para determinar parada, quando bater 2pi + offset
+// (ok) arrumar arquivo = segfault
+// (ok) tratar excessao do arquivo para n crashar ros
+// (ok) gravar o 0 do sensor de airspeed (true, indicated) para fazer compensação (tapar tubo quando ligar o sistema)
+
+
+// to do: serviço para calcular o true airspeed
 
 // quarta manhã 8h usp2
 
@@ -23,6 +26,9 @@
 #include <mavros_msgs/State.h>
 #include <mavros_msgs/WaypointReached.h>
 
+#include <sensor_msgs/NavSatFix.h>
+#include <sensor_msgs/FluidPressure.h>
+
 #include <std_msgs/Float64.h>
 
 #include <tf/transform_datatypes.h>
@@ -35,6 +41,8 @@
 #include <pthread.h>
 
 #include <math.h>
+
+#include <time.h>
 
 #define FILENAME "/tmp/data.txt"
 
@@ -68,11 +76,33 @@ void get_temperature_value(const std_msgs::Float64::ConstPtr &msg)
     temperature = *msg;
 }
 
+std_msgs::Float64 temperature_airspeed;
+void get_temperature_airspeed_value(const std_msgs::Float64::ConstPtr &msg)
+{
+    temperature_airspeed = *msg;
+}
+
 std_msgs::Float64 airspeed;
 void get_airspeed_value(const std_msgs::Float64::ConstPtr &msg)
 {
     airspeed = *msg;
 }
+
+sensor_msgs::NavSatFix gps;
+void get_gps_value(const sensor_msgs::NavSatFix::ConstPtr &msg)
+{
+    gps = *msg;
+}
+
+sensor_msgs::FluidPressure pressure_ambient;
+void get_pressure_value(const sensor_msgs::FluidPressure::ConstPtr &msg)
+{
+    pressure_ambient = *msg;
+}
+
+
+
+
 
 
 double offboard_enabled = -1;
@@ -85,6 +115,19 @@ double compass_diff = 0;
 double yaw_compass_start_value;
 FILE *fp = NULL;
 
+static float CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C = 1.225;
+static float CONSTANTS_AIR_GAS_CONST = 287.1;
+static float CONSTANTS_ABSOLUTE_NULL_CELSIUS = -273.15;
+float get_air_density(float static_pressure, float temperature_celsius)
+{
+    return static_pressure / (CONSTANTS_AIR_GAS_CONST * (temperature_celsius - CONSTANTS_ABSOLUTE_NULL_CELSIUS));
+}
+float calc_true_airspeed_from_indicated(float speed_indicated, float pressure_ambient, float temperature_celsius)
+{
+
+    return speed_indicated * sqrtf(CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C / get_air_density(pressure_ambient,
+                                   temperature_celsius));
+}
 
 void *thread_func_set_pos(void *args)
 {
@@ -95,20 +138,37 @@ void *thread_func_set_pos(void *args)
     // Sensor de temperatura
     ros::Subscriber temperature_sub = nh.subscribe<std_msgs::Float64>
                                       ("temperature", 1, get_temperature_value);
+    // Sensor de temperatura do sensor de velocidade do ar para compensação
+    ros::Subscriber temperature_airspeed_sub = nh.subscribe<std_msgs::Float64>
+                                      ("temperature_airspeed", 1, get_temperature_airspeed_value);
     // Sensor de airspeed
     ros::Subscriber airspeed_sub = nh.subscribe<std_msgs::Float64>
                                    ("airspeed", 1, get_airspeed_value);
+    // Pressão ambiente para o cálculo do true airspeed
+    ros::Subscriber pressure_sub = nh.subscribe<sensor_msgs::FluidPressure>
+                                   ("imu/atm_pressure", 1, get_pressure_value);
     ros::Rate rate(72.0);
     while(ros::ok())
     {
         if(collecting)
         {
-            ROS_INFO("Collecting");
-            value_quat2 += 0.00872664625; // 2*pi / 360 / 2
-            aux_rotate_tf = tf::createQuaternionFromYaw(value_quat2); // Valor (Quaternion) para rotação
-            quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
-            pose.pose.orientation = aux_rotate_geometry; // Seta o valor da rotação para o Pose, para ser enviado para o drone
-            if(fprintf != NULL) fprintf(fp, "%f;%f;%f\n", temperature.data, airspeed.data, compass.data); // gravar indic e true airspeed, humidade, lat, long, timestamp
+            try{
+                value_quat2 += 0.00872664625; // 2*pi / 360 / 2
+                ROS_INFO("Collecting quaternion = %f", value_quat2);
+                aux_rotate_tf = tf::createQuaternionFromYaw(value_quat2); // Valor (Quaternion) para rotação
+                quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
+                pose.pose.orientation = aux_rotate_geometry; // Seta o valor da rotação para o Pose, para ser enviado para o drone
+                float indicated_airspeed = airspeed.data;
+                float true_airspeed = calc_true_airspeed_from_indicated(indicated_airspeed, pressure_ambient.fluid_pressure, temperature_airspeed.data);
+                if(fp != NULL) {
+                    fprintf(fp, 
+                            "%f;%f;%f;%f;%f;%f;%d\n", 
+                            temperature.data, airspeed.data, true_airspeed, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
+                            ); // gravar indic e true airspeed, humidade, lat, long, timestamp
+                }
+            }catch(...) {
+                ROS_INFO("ERROR - COLLECTING");
+            }
         }
         local_pos_pub.publish(pose);
         ros::spinOnce();
@@ -150,6 +210,9 @@ int main(int argc, char **argv)
     // Dados da bússola
     ros::Subscriber compass_sub = nh.subscribe<std_msgs::Float64>
                                   ("mavros/global_position/compass_hdg", 1, get_compass_value);
+    // Dados de GPS
+    ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>
+                              ("mavros/global_position/global", 1, get_gps_value);
 
 
     // Setpoint publishing rate (precisa ser > 2Hz)
@@ -184,7 +247,12 @@ int main(int argc, char **argv)
 
     // Último request
     ros::Time last_request = ros::Time::now();
-
+ 
+    // Gravar o 0 do sensor de airspeed
+    fp = fopen(filename, "a+");
+    if(fp != NULL) fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f)", airspeed.data, calc_true_airspeed_from_indicated(indicated_airspeed, pressure_ambient.fluid_pressure, temperature_airspeed.data));
+    fclose(fp);
+    fp = NULL;
     // Último waypoint -> comparar com o atual para mudança de estado
     last_waypoint = waypoint_num.wp_seq;
     ROS_INFO_STREAM("First value for waypoint_num:" << waypoint_num.wp_seq);
@@ -203,7 +271,9 @@ int main(int argc, char **argv)
                 pose.pose.position.x = pos.pose.position.x;
                 pose.pose.position.y = pos.pose.position.y;
                 fp = fopen(FILENAME, "a+");
-                if(fp != NULL) fprintf(fp, "Waypoint: %d\n", last_waypoint);
+                float latitude = gps.latitude;
+                float longitude = gps.longitude;
+                if(fp != NULL) fprintf(fp, "Waypoint: %d at Latitude: %f Longitude: %f\nFormato: temperatura, indicated airspeed, true airspeed, bússula, lat, long, timestamp\n", last_waypoint, latitude, longitude);
             }
             break;
         case 0:
@@ -242,7 +312,7 @@ int main(int argc, char **argv)
 
 
                 // Compara a posição (bússola) atual com a posição de início caso o drone já tenha dado meia volta
-                if(collecting && can_compare_for_loop && diff(yaw_compass_start_value, compass.data) < 3)
+                if(collecting && ((can_compare_for_loop && diff(yaw_compass_start_value, compass.data) < 3) || value_quat2 > 2) )
                 {
                     collecting = 0; // Para de coletar
                     if(collecting_5m)   // Se coletou dados nos 5m de altura
@@ -257,6 +327,7 @@ int main(int argc, char **argv)
                         pose.pose.position.z = 5; // Enviar o drone para 5m de altura
                         collecting_5m = 1; // Flag para saber se está na coleta de dados na altura de 5m ou 2m
                         can_compare_for_loop = 0;
+                        value_quat2 = 0;
                     }
                 }
 

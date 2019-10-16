@@ -30,6 +30,8 @@ public:
         airspeed = 0.0;
         airspeedPublisher =
             nh->advertise<std_msgs::Float64>("/airspeed", 10);
+        temperature_airspeedPublisher =
+            nh->advertise<std_msgs::Float64>("/temperature_airspeed", 10);
     	fd = open("/dev/i2c-1", O_RDWR);
 
     }
@@ -57,8 +59,7 @@ public:
         
         return speed_indicated * sqrtf(CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C / get_air_density(pressure_ambient,
                                        temperature_celsius));
-    } // pegar valor da pix para fazer a true airspeed
-    // compensação, gravar valor de airspeed sem velocidade do vento para descontar nos valores medidos posteriormente
+    } 
     double readAirSpeedSensorData()
     {
         try
@@ -76,6 +77,8 @@ public:
             float diff_press_PSI = -((dp_raw - 0.1f * 16383) * (P_max - P_min) / (0.8f * 16383) + P_min);
             float diff_press_pa_raw = diff_press_PSI * PSI_to_Pa;
             airspeed = calc_indicated_airspeed(diff_press_pa_raw);
+            temp = temperature;
+
             return true;
         }
         catch (int e)
@@ -90,17 +93,23 @@ public:
             std_msgs::Float64 msg;
             msg.data = airspeed;
             airspeedPublisher.publish(msg);
+            msg.data = temp;
+            temperature_airspeedPublisher.publish(msg);
         }
         else
         {
             std_msgs::Float64 msg;
             msg.data = -1.0;
             airspeedPublisher.publish(msg);
+            msg.data = -111111;
+            temperature_airspeedPublisher.publish(msg);
         }
     }
 private:
     double airspeed;
+    double temp;
     ros::Publisher airspeedPublisher;
+    ros::Publisher temperature_airspeedPublisher;
     float P_min = -1.0;
     float P_max = 1.0;
     float PSI_to_Pa = 6894.757;

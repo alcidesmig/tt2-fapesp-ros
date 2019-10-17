@@ -233,3 +233,6 @@ target_link_libraries(free_collect_data ${catkin_LIBRARIES})
 
 add_executable(temperature_airspeed src/temperature_airspeed.cpp)
 target_link_libraries(temperature_airspeed ${catkin_LIBRARIES})
+
+add_executable(temp_humidity src/temp_humidity.cpp)
+target_link_libraries(temp_humidity ${catkin_LIBRARIES})

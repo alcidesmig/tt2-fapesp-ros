@@ -88,6 +88,12 @@ void get_airspeed_value(const std_msgs::Float64::ConstPtr &msg)
     airspeed = *msg;
 }
 
+std_msgs::Float64 humidity;
+void get_hum_temperature_value(const std_msgs::Float64::ConstPtr &msg)
+{
+    humidity = *msg;
+}
+
 sensor_msgs::NavSatFix gps;
 void get_gps_value(const sensor_msgs::NavSatFix::ConstPtr &msg)
 {
@@ -99,10 +105,6 @@ void get_pressure_value(const sensor_msgs::FluidPressure::ConstPtr &msg)
 {
     pressure_ambient = *msg;
 }
-
-
-
-
 
 
 double offboard_enabled = -1;
@@ -138,6 +140,9 @@ void *thread_func_set_pos(void *args)
     // Sensor de temperatura
     ros::Subscriber temperature_sub = nh.subscribe<std_msgs::Float64>
                                       ("temperature", 1, get_temperature_value);
+    // Sensor de temperatura ~ umidade
+    ros::Subscriber humidity_sub = nh.subscribe<std_msgs::Float64>
+                                      ("humidity_temperature", 1, get_hum_temperature_value);
     // Sensor de temperatura do sensor de velocidade do ar para compensação
     ros::Subscriber temperature_airspeed_sub = nh.subscribe<std_msgs::Float64>
                                       ("temperature_airspeed", 1, get_temperature_airspeed_value);
@@ -162,8 +167,8 @@ void *thread_func_set_pos(void *args)
                 float true_airspeed = calc_true_airspeed_from_indicated(indicated_airspeed, pressure_ambient.fluid_pressure, temperature_airspeed.data);
                 if(fp != NULL) {
                     fprintf(fp, 
-                            "%f;%f;%f;%f;%f;%f;%d\n", 
-                            temperature.data, airspeed.data, true_airspeed, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
+                            "%f;%f;%f;%f;%f;%f;%f;%d\n", 
+                            temperature.data, airspeed.data, true_airspeed, humidity, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
                             ); // gravar indic e true airspeed, humidade, lat, long, timestamp
                 }
             }catch(...) {

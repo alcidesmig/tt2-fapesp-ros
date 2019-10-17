@@ -53,6 +53,11 @@ void get_pressure_value(const sensor_msgs::FluidPressure::ConstPtr &msg)
     pressure_ambient = *msg;
 }
 
+std_msgs::Float64 humidity;
+void get_hum_temperature_value(const std_msgs::Float64::ConstPtr &msg)
+{
+    humidity = *msg;
+}
 
 static float CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C = 1.225;
 static float CONSTANTS_AIR_GAS_CONST = 287.1;
@@ -79,6 +84,9 @@ int main(int argc, char **argv)
     // Sensor de temperatura
     ros::Subscriber temperature_sub = nh.subscribe<std_msgs::Float64>
                                       ("temperature", 1, get_temperature_value);
+    // Sensor de temperatura ~ umidade
+    ros::Subscriber humidity_sub = nh.subscribe<std_msgs::Float64>
+                                      ("humidity_temperature", 1, get_hum_temperature_value);
     // Sensor de airspeed
     ros::Subscriber airspeed_sub = nh.subscribe<std_msgs::Float64>
                                    ("airspeed", 1, get_airspeed_value);
@@ -116,9 +124,9 @@ int main(int argc, char **argv)
             float true_airspeed = calc_true_airspeed_from_indicated(indicated_airspeed, pressure_ambient.fluid_pressure, temperature_airspeed.data);
             if(fp != NULL) {
                 fprintf(fp, 
-                    "%f;%f;%f;%f;%f;%f;%d\n", 
-                    temperature.data, indicated_airspeed, true_airspeed, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
-                ); // gravar indic e true airspeed, humidade, lat, long, timestamp        }catch(...) {
+                    "%f;%f;%f;%f;%f;%f;%f;%d\n", 
+                    temperature.data, indicated_airspeed, true_airspeed, humidity, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
+                );
             }
         }catch(...){
             ROS_INFO("ERROR - COLLECTING");

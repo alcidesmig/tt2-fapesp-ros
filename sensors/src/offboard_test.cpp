@@ -6,12 +6,14 @@
 
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/TwistStamped.h>
 #include <mavros_msgs/CommandBool.h>
 #include <mavros_msgs/SetMode.h>
 #include <mavros_msgs/State.h>
 
 mavros_msgs::State current_state;
-void state_cb(const mavros_msgs::State::ConstPtr& msg){
+void state_cb(const mavros_msgs::State::ConstPtr &msg)
+{
     current_state = *msg;
 }
 
@@ -21,19 +23,22 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
-            ("mavros/state", 10, state_cb);
+                                ("mavros/state", 10, state_cb);
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
-            ("mavros/setpoint_position/local", 10);
+                                   ("mavros/setpoint_position/local", 10);
+    ros::Publisher velocity_pub = nh.advertise<geometry_msgs::TwistStamped>
+                                  ("mavros/local_position/velocity", 10);
     ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>
-            ("mavros/cmd/arming");
+                                       ("mavros/cmd/arming");
     ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>
-            ("mavros/set_mode");
+                                         ("mavros/set_mode");
 
     //the setpoint publishing rate MUST be faster than 2Hz
     ros::Rate rate(20.0);
 
     // wait for FCU connection
-    while(ros::ok() && !current_state.connected){
+    while(ros::ok() && !current_state.connected)
+    {
         ros::spinOnce();
         rate.sleep();
     }
@@ -44,11 +49,21 @@ int main(int argc, char **argv)
     pose.pose.position.z = 2;
 
     //send a few setpoints before starting
-    for(int i = 100; ros::ok() && i > 0; --i){
+    for(int i = 100; ros::ok() && i > 0; --i)
+    {
         local_pos_pub.publish(pose);
         ros::spinOnce();
         rate.sleep();
     }
+
+    geometry_msgs::TwistStamped twist;
+    twist.twist.angular.x = 0.3;
+    twist.twist.angular.y = 0.3;
+    twist.twist.angular.z = 0.3;
+    twist.twist.linear.x = 0.3;
+    twist.twist.linear.y = 0.3;
+    twist.twist.linear.z = 0.3;
+
 
     mavros_msgs::SetMode offb_set_mode;
     offb_set_mode.request.custom_mode = "OFFBOARD";
@@ -58,25 +73,41 @@ int main(int argc, char **argv)
 
     ros::Time last_request = ros::Time::now();
 
-    while(ros::ok()){
+    while(ros::ok())
+    {
         if( current_state.mode != "OFFBOARD" &&
-            (ros::Time::now() - last_request > ros::Duration(5.0))){
+                (ros::Time::now() - last_request > ros::Duration(5.0)))
+        {
             if( set_mode_client.call(offb_set_mode) &&
-                offb_set_mode.response.mode_sent){
+                    offb_set_mode.response.mode_sent)
+            {
                 ROS_INFO("Offboard enabled");
             }
             last_request = ros::Time::now();
-        } else {
+        }
+        else
+        {
             if( !current_state.armed &&
-                (ros::Time::now() - last_request > ros::Duration(5.0))){
+                    (ros::Time::now() - last_request > ros::Duration(5.0)))
+            {
                 if( arming_client.call(arm_cmd) &&
-                    arm_cmd.response.success){
+                        arm_cmd.response.success)
+                {
                     ROS_INFO("Vehicle armed");
                 }
                 last_request = ros::Time::now();
             }
         }
 
+        twist.twist.angular.x += 1;
+        twist.twist.angular.y += 1;
+        twist.twist.angular.z += 1;
+
+        twist.twist.linear.x += 1;
+        twist.twist.linear.y += 1;
+        twist.twist.linear.z += 1;
+
+        velocity_pub.publish(twist);
         local_pos_pub.publish(pose);
 
         ros::spinOnce();

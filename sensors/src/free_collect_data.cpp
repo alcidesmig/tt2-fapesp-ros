@@ -15,7 +15,7 @@
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/FluidPressure.h>
 
-#define FILENAME "/tmp/data.txt"
+#define FILENAME "/mnt/pendrive/data.txt"
 
 std_msgs::Float64 compass;
 void get_compass_value(const std_msgs::Float64::ConstPtr &msg)
@@ -90,7 +90,7 @@ int main(int argc, char **argv)
                                       ("temperature_airspeed", 1, get_temperature_airspeed_value);
     // Pressão ambiente para o cálculo do true airspeed
     ros::Subscriber pressure_sub = nh.subscribe<sensor_msgs::FluidPressure>
-                                   ("imu/atm_pressure", 1, get_pressure_value);
+                                   ("/mavros/imu/static_pressure", 1, get_pressure_value);
                                        // Dados de GPS
     ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>
                               ("mavros/global_position/global", 1, get_gps_value);
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
     if(fp != NULL) fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f)", airspeed.data, calc_true_airspeed_from_indicated(airspeed.data, pressure_ambient.fluid_pressure, temperature_airspeed.data));
     fclose(fp);
 
-    ros::Rate rate(100.0); 
+    ros::Rate rate(10.0); 
 
     while(ros::ok())
     {

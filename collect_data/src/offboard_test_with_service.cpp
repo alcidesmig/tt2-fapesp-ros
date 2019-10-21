@@ -44,6 +44,9 @@
 
 #include <time.h>
 
+#include <collect_data/HDC1050.h>
+#include <collect_data/MS4525.h>
+
 #define FILENAME "/tmp/data.txt"
 
 mavros_msgs::State current_state;
@@ -70,28 +73,16 @@ void get_compass_value(const std_msgs::Float64::ConstPtr &msg)
     compass = *msg;
 }
 
-std_msgs::Float64 temperature;
-void get_temperature_value(const std_msgs::Float64::ConstPtr &msg)
+collect_data::HDC1050 hdc1050;
+void get_hdc1050_data(const collect_data::HDC1050::ConstPtr &msg)
 {
-    temperature = *msg;
+    hdc1050 = *msg;
 }
 
-std_msgs::Float64 temperature_airspeed;
-void get_temperature_airspeed_value(const std_msgs::Float64::ConstPtr &msg)
+collect_data::MS4525 ms4525;
+void get_ms4525_data(const collect_data::MS4525::ConstPtr &msg)
 {
-    temperature_airspeed = *msg;
-}
-
-std_msgs::Float64 airspeed;
-void get_airspeed_value(const std_msgs::Float64::ConstPtr &msg)
-{
-    airspeed = *msg;
-}
-
-std_msgs::Float64 humidity;
-void get_hum_temperature_value(const std_msgs::Float64::ConstPtr &msg)
-{
-    humidity = *msg;
+    ms4525 = *msg;
 }
 
 sensor_msgs::NavSatFix gps;
@@ -138,17 +129,11 @@ void *thread_func_set_pos(void *args)
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
                                    ("mavros/setpoint_position/local", 1);
     // Sensor de temperatura
-    ros::Subscriber temperature_sub = nh.subscribe<std_msgs::Float64>
-                                      ("temperature", 1, get_temperature_value);
-    // Sensor de temperatura ~ umidade
-    ros::Subscriber humidity_sub = nh.subscribe<std_msgs::Float64>
-                                      ("humidity_temperature", 1, get_hum_temperature_value);
-    // Sensor de temperatura do sensor de velocidade do ar para compensação
-    ros::Subscriber temperature_airspeed_sub = nh.subscribe<std_msgs::Float64>
-                                      ("temperature_airspeed", 1, get_temperature_airspeed_value);
+    ros::Subscriber hdc1050_sub = nh.subscribe<collect_data::HDC1050>
+                                  ("hdc1050", 1, get_hdc1050_data);
     // Sensor de airspeed
-    ros::Subscriber airspeed_sub = nh.subscribe<std_msgs::Float64>
-                                   ("airspeed", 1, get_airspeed_value);
+    ros::Subscriber ms4525_sub = nh.subscribe<collect_data::MS4525>
+                                 ("ms4525", 1, get_ms4525_data);
     // Pressão ambiente para o cálculo do true airspeed
     ros::Subscriber pressure_sub = nh.subscribe<sensor_msgs::FluidPressure>
                                    ("imu/atm_pressure", 1, get_pressure_value);
@@ -157,21 +142,37 @@ void *thread_func_set_pos(void *args)
     {
         if(collecting)
         {
-            try{
+            try
+            {
                 value_quat2 += 0.00872664625; // 2*pi / 360 / 2
                 ROS_INFO("Collecting quaternion = %f", value_quat2);
                 aux_rotate_tf = tf::createQuaternionFromYaw(value_quat2); // Valor (Quaternion) para rotação
                 quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
                 pose.pose.orientation = aux_rotate_geometry; // Seta o valor da rotação para o Pose, para ser enviado para o drone
-                float indicated_airspeed = airspeed.data;
-                float true_airspeed = calc_true_airspeed_from_indicated(indicated_airspeed, pressure_ambient.fluid_pressure, temperature_airspeed.data);
-                if(fp != NULL) {
-                    fprintf(fp, 
-                            "%f;%f;%f;%f;%f;%f;%f;%d\n", 
-                            temperature.data, airspeed.data, true_airspeed, humidity, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
-                            ); // gravar indic e true airspeed, humidade, lat, long, timestamp
+                float indicated_airspeed = ms4525.indicated_airspeed;
+                float temperature_airspeed = ms4525.temperature;
+                float true_airspeed = calc_true_airspeed_from_indicated(indicated_airspeed, pressure_ambient.fluid_pressure, temperature_airspeed);
+                if(fp != NULL)
+                {
+                    if(!ms4525.valid)
+                    {
+                        fprintf(fp, "Dados do MS4525 inválidos\n");
+                    }
+                    if(!hdc1050.valid)
+                    {
+                        fprintf(fp, "Dados do HDC1050 inválidos\n");
+                    }
+                    if(hdc1050.valid && ms4525.valid)
+                    {
+                        fprintf(fp,
+                                "%f;%f;%f;%f;%f;%f;%f;%d\n",
+                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
+                               );
+                    }
                 }
-            }catch(...) {
+            }
+            catch(...)
+            {
                 ROS_INFO("ERROR - COLLECTING");
             }
         }
@@ -252,10 +253,10 @@ int main(int argc, char **argv)
 
     // Último request
     ros::Time last_request = ros::Time::now();
- 
+
     // Gravar o 0 do sensor de airspeed
     fp = fopen(FILENAME, "a+");
-    if(fp != NULL) fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f)", airspeed.data, calc_true_airspeed_from_indicated(airspeed.data, pressure_ambient.fluid_pressure, temperature_airspeed.data));
+    if(fp != NULL) fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f) - Dados válidos: %d", ms4525.indicated_airspeed, calc_true_airspeed_from_indicated(ms4525.indicated_airspeed, pressure_ambient.fluid_pressure, ms4525.temperature), ms4525.valid);
     fclose(fp);
     fp = NULL;
     // Último waypoint -> comparar com o atual para mudança de estado

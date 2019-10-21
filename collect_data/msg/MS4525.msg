@@ -1,0 +1,3 @@
+uint8 valid
+float32 indicated_airspeed
+float32 temperature

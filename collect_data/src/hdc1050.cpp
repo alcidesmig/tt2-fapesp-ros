@@ -1,19 +1,27 @@
 // edit of https://roboticsbackend.com/roscpp-timer-with-ros-publish-data-at-a-fixed-rate/
 #include <ros/ros.h>
+
 #include <std_msgs/Float64.h>
+
 #include <vector>
 #include <numeric>
+
 #include <sys/ioctl.h>
+#include <sys/types.h>
+
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <fcntl.h>
+#include <pthread.h>
+
 #include <linux/i2c-dev.h>
 #include <linux/i2c.h>
-#include <pthread.h>
+
 #include <boost/bind.hpp>
+
+#include <collect_data/HDC1050.h>
 
 static int fd;
 
@@ -49,61 +57,70 @@ unsigned short i2c_read(unsigned char addr, unsigned char reg, int delay)
 
 
 
-class TemperatureSensor
+class SensorHDC1050
 {
 public:
-    TemperatureSensor(ros::NodeHandle *nh)
+    SensorHDC1050(ros::NodeHandle *nh)
     {
         // Initialize temperature, i2c and ROS publisher
-        temperature = 0.0;
-        temperaturePublisher =
-            nh->advertise<std_msgs::Float64>("/temperature", 10);
+        temperature = 0;
+        humidity = 0;
+        valid = 0;
+        dataPublisher =
+            nh->advertise<collect_data::HDC1050>("/hdc1050", 10);
         fd = open("/dev/i2c-1", O_RDWR);
     }
-    bool readTemperatureSensorData()
+    bool readSensorData()
     {
         try
         {
             double i2c_value = i2c_read(0x40, 0, 20000); // 0 = temperature, 1 = humidity
-            temperature = i2c_value * (165.0 / 65536.0) - 40; //transferir umidade
-            return true;
+            temperature = i2c_value * (165.0 / 65536.0) - 40;
+            i2c_value  = i2c_read(0x40,1,20000);
+            humidity = i2c_value  * (100.0/65536.0);
+            valid = 1;
         }
-        catch (int e)
+        catch (...)
         {
-            return false;
+            valid = 0;
         }
     }
-    void publishTemperature()
+    void publishData()
     {
-        if(readTemperatureSensorData())
+        if(valid)
         {
-            std_msgs::Float64 msg;
-            msg.data = temperature;
-            temperaturePublisher.publish(msg);
+            msg.temperature = temperature;
+            msg.humidity = humidity;
+            msg.valid = 1;
+            dataPublisher.publish(msg);
         } else {
-            std_msgs::Float64 msg;
-            msg.data = -1;
-            temperaturePublisher.publish(msg);
+            msg.temperature = temperature;
+            msg.humidity = humidity;
+            msg.valid = 0;
+            dataPublisher.publish(msg);
         }
     }
 private:
     double temperature;
-    ros::Publisher temperaturePublisher;
+    double humidity;
+    int valid;
+    collect_data::HDC1050 msg;
+    ros::Publisher dataPublisher;
 };
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "temperature");
+    ros::init(argc, argv, "hdc1050");
     ros::NodeHandle nh;
-    // Create an instance of Temperature sensor
-    TemperatureSensor temperatureSensor(&nh);
-    // Create a ROS timer for reading data
-    ros::Timer timerReadTemperature =
+    // Cria uma instância do sensor
+    SensorHDC1050 sensor(&nh);
+    // Cria um ROS timer para ler dados
+    ros::Timer timerReadData =
         nh.createTimer(ros::Duration(1.0 / 100.0),
-                       boost::bind(&TemperatureSensor::readTemperatureSensorData, temperatureSensor));
-    // Create a ROS timer for publishing temperature
-    ros::Timer timerPublishTemperature =
+                       boost::bind(&SensorHDC1050::readSensorData, sensor));
+    // Cria um ROS timer para publicar dados
+    ros::Timer timerPublishData =
         nh.createTimer(ros::Duration(1.0 / 10.0),
-                       boost::bind(&TemperatureSensor::publishTemperature, temperatureSensor));
+                       boost::bind(&SensorHDC1050::publishData, sensor));
     ros::spin();
 }

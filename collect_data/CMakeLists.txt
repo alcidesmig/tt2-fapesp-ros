@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(sensors)
+project(collect_data)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   mavros_msgs
   roscpp
   std_msgs
-  sensor_msgs
+  message_generation
 )
 
 ## System dependencies are found with CMake's conventions
@@ -49,11 +49,11 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  HDC1050.msg
+  MS4525.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -70,10 +70,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   mavros_msgs#   std_msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -105,6 +105,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
+  CATKIN_DEPENDS message_runtime
 #  INCLUDE_DIRS include
 #  LIBRARIES beginner_tutorials
 #  CATKIN_DEPENDS geometry_msgs mavros_msgs roscpp rospy std_msgs
@@ -210,11 +211,11 @@ include_directories(
 add_executable(offboard_test src/offboard_test.cpp)
 target_link_libraries(offboard_test ${catkin_LIBRARIES})
 
-add_executable(airspeed src/airspeed.cpp)
-target_link_libraries(airspeed ${catkin_LIBRARIES})
+add_executable(ms4525 src/ms4525.cpp)
+target_link_libraries(ms4525 ${catkin_LIBRARIES})
 
-add_executable(temp src/temp.cpp)
-target_link_libraries(temp ${catkin_LIBRARIES})
+add_executable(hdc1050 src/hdc1050.cpp)
+target_link_libraries(hdc1050 ${catkin_LIBRARIES})
 
 add_executable(get_pos src/get_pos.cpp)
 target_link_libraries(get_pos ${catkin_LIBRARIES})

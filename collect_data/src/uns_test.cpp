@@ -96,10 +96,12 @@ int main(int argc, char **argv)
                 last_request = ros::Time::now();
             }
         }
-
-        if(pos.pose.position.z > 1.8) {
+	
+	//vel.angular.z += 0.5;
+        if(pos.pose.position.z > 1.5) {
           local_vel_pub.publish(vel);
-        }
+          ROS_INFO("Published");
+	}
 
         local_pos_pub.publish(pose);
 

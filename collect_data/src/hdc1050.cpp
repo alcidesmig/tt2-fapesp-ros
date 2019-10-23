@@ -55,7 +55,8 @@ unsigned short i2c_read(unsigned char addr, unsigned char reg, int delay)
     return buf[0] * 256 + buf[1];
 }
 
-
+float temperature, humidity;
+int valid;
 
 class SensorHDC1050
 {
@@ -74,9 +75,9 @@ public:
     {
         try
         {
-            double i2c_value = i2c_read(0x40, 0, 20000); // 0 = temperature, 1 = humidity
-            temperature = i2c_value * (165.0 / 65536.0) - 40;
-            i2c_value  = i2c_read(0x40,1,20000);
+	    double i2c_value = i2c_read(0x40, 0, 20000); // 0 = temperature, 1 = humidity
+	    temperature = i2c_value * (165.0 / 65536.0) - 40;
+	    i2c_value  = i2c_read(0x40,1,20000);
             humidity = i2c_value  * (100.0/65536.0);
             valid = 1;
         }
@@ -101,9 +102,6 @@ public:
         }
     }
 private:
-    double temperature;
-    double humidity;
-    int valid;
     collect_data::HDC1050 msg;
     ros::Publisher dataPublisher;
 };
@@ -116,7 +114,7 @@ int main(int argc, char **argv)
     SensorHDC1050 sensor(&nh);
     // Cria um ROS timer para ler dados
     ros::Timer timerReadData =
-        nh.createTimer(ros::Duration(1.0 / 100.0),
+    	nh.createTimer(ros::Duration(1.0 / 100.0),
                        boost::bind(&SensorHDC1050::readSensorData, sensor));
     // Cria um ROS timer para publicar dados
     ros::Timer timerPublishData =

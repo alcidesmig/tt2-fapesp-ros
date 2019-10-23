@@ -237,3 +237,6 @@ target_link_libraries(temperature_airspeed ${catkin_LIBRARIES})
 
 add_executable(temp_humidity src/temp_humidity.cpp)
 target_link_libraries(temp_humidity ${catkin_LIBRARIES})
+
+add_executable(uns_test src/uns_test.cpp)
+target_link_libraries(uns_test ${catkin_LIBRARIES})

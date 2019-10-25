@@ -47,7 +47,7 @@
 #include <collect_data/HDC1050.h>
 #include <collect_data/MS4525.h>
 
-#define FILENAME "/tmp/data.txt"
+#define FILENAME "/mnt/pendrive/data.txt"
 
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
@@ -100,7 +100,7 @@ void get_pressure_value(const sensor_msgs::FluidPressure::ConstPtr &msg)
 
 double offboard_enabled = -1;
 int value_quaternion, collecting, cont_spin, collecting_5m, last_waypoint = -1, status = -1, can_compare_for_loop = 0;
-double value_quat2 = 0.00872664625;
+double value_quat2 = 0.00872664625 / 2;
 tf::Quaternion aux_rotate_tf;
 geometry_msgs::Quaternion aux_rotate_geometry;
 geometry_msgs::PoseStamped pose;
@@ -144,7 +144,7 @@ void *thread_func_set_pos(void *args)
         {
             try
             {
-                value_quat2 += 0.00872664625; // 2*pi / 360 / 2
+                value_quat2 += (0.00872664625 / 2); // 2*pi / 360 / 2
                 ROS_INFO("Collecting quaternion = %f", value_quat2);
                 aux_rotate_tf = tf::createQuaternionFromYaw(value_quat2); // Valor (Quaternion) para rotação
                 quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
@@ -165,8 +165,8 @@ void *thread_func_set_pos(void *args)
                     if(hdc1050.valid && ms4525.valid)
                     {
                         fprintf(fp,
-                                "%f;%f;%f;%f;%f;%f;%f;%d\n",
-                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
+                                "%f;%f;%f;%f;%f;%f;%f;%f;%f;%d\n",
+                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.pose.position.z, (int) time(NULL)
                                );
                     }
                 }
@@ -218,7 +218,7 @@ int main(int argc, char **argv)
                                   ("mavros/global_position/compass_hdg", 1, get_compass_value);
     // Dados de GPS
     ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>
-                              ("mavros/global_position/global", 1, get_gps_value);
+                              ("mavros/global_position/raw/fix", 1, get_gps_value);
 
 
     // Setpoint publishing rate (precisa ser > 2Hz)
@@ -279,7 +279,9 @@ int main(int argc, char **argv)
                 fp = fopen(FILENAME, "a+");
                 float latitude = gps.latitude;
                 float longitude = gps.longitude;
-                if(fp != NULL) fprintf(fp, "Waypoint: %d at Latitude: %f Longitude: %f\nFormato: temperatura, indicated airspeed, true airspeed, bússula, lat, long, timestamp\n", last_waypoint, latitude, longitude);
+                if(fp != NULL) fprintf(fp, "Waypoint: %d at Latitude: %f Longitude: %f\nFormato: 
+                    hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.altura
+                    \n", last_waypoint, latitude, longitude);
             }
             break;
         case 0:
@@ -330,7 +332,7 @@ int main(int argc, char **argv)
                     }
                     if(!collecting_5m && status != 1)
                     {
-                        pose.pose.position.z = 5; // Enviar o drone para 5m de altura
+                        pose.pose.position.z = 8; // Enviar o drone para 5m de altura
                         collecting_5m = 1; // Flag para saber se está na coleta de dados na altura de 5m ou 2m
                         can_compare_for_loop = 0;
                         value_quat2 = 0;
@@ -338,7 +340,7 @@ int main(int argc, char **argv)
                 }
 
                 // Se chegou a 5m de altura (tolerância = 0.3m), começa a coletar os dados
-                if(collecting_5m && (pos.pose.position.z - 5 < 0.3 && pos.pose.position.z - 5 > -0.3))
+                if(collecting_5m && (pos.pose.position.z - 8 < 0.3 && pos.pose.position.z - 8 > -0.3))
                 {
                     if(!collecting)
                     {

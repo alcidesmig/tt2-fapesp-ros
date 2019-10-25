@@ -31,6 +31,14 @@ float P_min = -1.0;
 float P_max = 1.0;
 float PSI_to_Pa = 6894.757;
 
+double airspeed;
+double temp;
+double moving_avg;
+double avg[20];
+double sum_avg;
+int current_avg_index;
+int valid;
+
 static int fd;
 
 class SensorMS4525
@@ -133,14 +141,6 @@ public:
         }
     }
 private:
-    double airspeed;
-    double temp;
-    double moving_avg;
-    double avg[20];
-    double sum_avg;
-    int current_avg_index;
-    int valid;
-
     collect_data::MS4525 msg;
 
     ros::Publisher publisher;

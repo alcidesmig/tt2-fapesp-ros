@@ -18,7 +18,7 @@
 #include <collect_data/HDC1050.h>
 #include <collect_data/MS4525.h>
 
-#define FILENAME "/mnt/pendrive/data.txt"
+#define FILENAME "/tmp/data.txt"
 
 std_msgs::Float64 compass;
 void get_compass_value(const std_msgs::Float64::ConstPtr &msg)

@@ -8,7 +8,6 @@
 
 #include <std_msgs/Float64.h>
 
-#include <math.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -18,8 +17,6 @@
 
 #include <collect_data/HDC1050.h>
 #include <collect_data/MS4525.h>
-
-#include <sensor_msgs/MagneticField.h>
 
 #define FILENAME "/tmp/data.txt"
 
@@ -53,11 +50,6 @@ void get_pressure_value(const sensor_msgs::FluidPressure::ConstPtr &msg)
     pressure_ambient = *msg;
 }
 
-sensor_msgs::MagneticField mag_compass;
-void get_mag_compass_value(const sensor_msgs::MagneticField::ConstPtr &msg)
-{
-    mag_compass = *msg;
-}
 
 static float CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C = 1.225;
 static float CONSTANTS_AIR_GAS_CONST = 287.1;
@@ -75,17 +67,11 @@ float calc_true_airspeed_from_indicated(float speed_indicated, float pressure_am
 FILE *fp;
 int cont = 0;
 
-double mag_to_compass(float x, float y) {
-    return atan2(y, x) * 180 / M_PI;
-}
-
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "drone_node");
 
     ros::NodeHandle nh;
-
-    ros::Subscriber mag_sub = nh.subscribe<sensor_msgs::MagneticField>("mavros/imu/mag", 1, get_mag_compass_value);
 
     // Sensor de temperatura
     ros::Subscriber hdc1050_sub = nh.subscribe<collect_data::HDC1050>
@@ -98,10 +84,10 @@ int main(int argc, char **argv)
                                   ("mavros/global_position/compass_hdg", 1, get_compass_value);
     // Pressão ambiente para o cálculo do true airspeed
     ros::Subscriber pressure_sub = nh.subscribe<sensor_msgs::FluidPressure>
-                                   ("mavros/imu/static_pressure", 1, get_pressure_value);
+                                   ("/mavros/imu/static_pressure", 1, get_pressure_value);
     // Dados de GPS
     ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>
-                              ("mavros/global_position/raw/fix", 1, get_gps_value);
+                              ("mavros/global_position/global", 1, get_gps_value);
 
     fp = fopen(FILENAME, "a+");
     if(fp != NULL)
@@ -114,8 +100,7 @@ int main(int argc, char **argv)
 
     while(ros::ok())
     {
-        
-	try
+        try
         {
             cont++;
             if(cont > 100)
@@ -129,11 +114,7 @@ int main(int argc, char **argv)
             }
             float indicated_airspeed = ms4525.indicated_airspeed;
             float true_airspeed = calc_true_airspeed_from_indicated(indicated_airspeed, pressure_ambient.fluid_pressure, ms4525.temperature);
-            float compass_mag = mag_to_compass(mag_compass.magnetic_field.x, mag_compass.magnetic_field.y);
-	    ROS_INFO("%f;%f;%f;%f;%lf;%f;%f;%f;%d\n",
-                            hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass_mag, gps.latitude, gps.longitude, gps.altitude, (int) time(NULL)
-                           );
-	    if(fp != NULL)
+            if(fp != NULL)
             {
                 if(!ms4525.valid)
                 {
@@ -146,13 +127,11 @@ int main(int argc, char **argv)
                 if(hdc1050.valid && ms4525.valid)
                 {
                     fprintf(fp,
-                            "%f;%f;%f;%f;%lf;%f;%f;%f;%d\n",
-                            hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass_mag, gps.latitude, gps.longitude, gps.altitude, (int) time(NULL)
+                            "%f;%f;%f;%f;%f;%f;%f;%d\n",
+                            hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
                            );
                 }
-            } else {
-	    	ROS_INFO("Erro FP");
-	    }
+            }
         }
         catch(...)
         {

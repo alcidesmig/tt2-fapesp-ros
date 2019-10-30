@@ -279,9 +279,7 @@ int main(int argc, char **argv)
                 fp = fopen(FILENAME, "a+");
                 float latitude = gps.latitude;
                 float longitude = gps.longitude;
-                if(fp != NULL) fprintf(fp, "Waypoint: %d at Latitude: %f Longitude: %f\nFormato: 
-                    hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.altura
-                    \n", last_waypoint, latitude, longitude);
+                if(fp != NULL) fprintf(fp, "Waypoint: %d at Latitude: %f Longitude: %f\nFormato: hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.altura\n", last_waypoint, latitude, longitude);
             }
             break;
         case 0:

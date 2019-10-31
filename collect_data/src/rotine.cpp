@@ -32,6 +32,8 @@ void get_cmd_vel(const std_msgs::Float64::ConstPtr &msg)
     rot = *msg;
 }
 
+float value_sum_quaternion = 0.01745329251;
+float value_now_quaternion = 0;
 
 int main(int argc, char **argv)
 {
@@ -56,10 +58,8 @@ int main(int argc, char **argv)
 
 
 
-    //the setpoint publishing rate MUST be faster than 2Hz
-    ros::Rate rate(20.0);
+    ros::Rate rate(72.0); // 360 / 5s = 72
 
-    // wait for FCU connection
     while(ros::ok() && !current_state.connected)
     {
         ros::spinOnce();
@@ -92,6 +92,18 @@ int main(int argc, char **argv)
     ros::Time last_request = ros::Time::now();
     double i = 0;
     int flag = 1;
+
+
+    // Lê o valor da velocidade da rotação e aplica no valor a ser somado
+    FILE *file_rotate = fopen("/home/pi/parameters.txt", "r");
+    float divisor;
+    int return_scanf = fscanf(file_rotate, "%f", &divisor);
+    fclose(file_rotate);
+    if(return_scanf != 1) {
+        divisor = 1;
+    }
+    value_sum_quaternion /= divisor;
+
     while(ros::ok())
     {
         if( current_state.mode != "OFFBOARD" &&
@@ -118,12 +130,9 @@ int main(int argc, char **argv)
             }
         }
 
-        tf::Quaternion x = tf::createQuaternionFromYaw(++i / 25);
-        /*if(rot.data == <>)
-        {
-            flag = 0;
-        }*/
 
+        tf::Quaternion x = tf::createQuaternionFromYaw(value_now_quaternion);
+        value_now_quaternion += value_sum_quaternion;
         geometry_msgs::Quaternion y;
         ROS_INFO("%f", rot.data);
         quaternionTFToMsg(x, y);

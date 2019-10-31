@@ -13,7 +13,8 @@ void get_pos(const geometry_msgs::PoseStamped::ConstPtr &msg)
 }
 
 mavros_msgs::State current_state;
-void state_cb(const mavros_msgs::State::ConstPtr& msg){
+void state_cb(const mavros_msgs::State::ConstPtr &msg)
+{
     current_state = *msg;
 }
 
@@ -23,27 +24,28 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
 
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
-            ("mavros/state", 10, state_cb);
+                                ("mavros/state", 10, state_cb);
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
-            ("mavros/setpoint_position/local", 10);
+                                   ("mavros/setpoint_position/local", 10);
     ros::Publisher yaw_pub = nh.advertise<mavros_msgs::GlobalPositionTarget>
-            ("mavros/setpoint_position/global", 10);
+                             ("mavros/setpoint_position/global", 10);
     ros::ServiceClient arming_client = nh.serviceClient<mavros_msgs::CommandBool>
-            ("mavros/cmd/arming");
+                                       ("mavros/cmd/arming");
     ros::ServiceClient set_mode_client = nh.serviceClient<mavros_msgs::SetMode>
-            ("mavros/set_mode");
+                                         ("mavros/set_mode");
     ros::Publisher local_vel_pub = nh.advertise<geometry_msgs::Twist>
-    ("mavros/setpoint_velocity/cmd_vel_unstamped", 10);
+                                   ("mavros/setpoint_velocity/cmd_vel_unstamped", 1);
 
     // Pegar a posição do drone
     ros::Subscriber pos_sub = nh.subscribe<geometry_msgs::PoseStamped>
-                    ("mavros/local_position/pose", 10, get_pos);
+                              ("mavros/local_position/pose", 10, get_pos);
 
     //the setpoint publishing rate MUST be faster than 2Hz
     ros::Rate rate(20.0);
 
     // wait for FCU connection
-    while(ros::ok() && !current_state.connected){
+    while(ros::ok() && !current_state.connected)
+    {
         ros::spinOnce();
         rate.sleep();
     }
@@ -61,10 +63,11 @@ int main(int argc, char **argv)
     vel.linear.z = 0.0;
     vel.angular.x = 0.0;
     vel.angular.y = 0.0;
-    vel.angular.z = 1.0;
+    vel.angular.z = 0;
 
     //send a few setpoints before starting
-    for(int i = 100; ros::ok() && i > 0; --i){
+    for(int i = 100; ros::ok() && i > 0; --i)
+    {
         local_pos_pub.publish(pose);
         ros::spinOnce();
         rate.sleep();
@@ -78,30 +81,38 @@ int main(int argc, char **argv)
 
     ros::Time last_request = ros::Time::now();
 
-    while(ros::ok()){
+    while(ros::ok())
+    {
         if( current_state.mode != "OFFBOARD" &&
-            (ros::Time::now() - last_request > ros::Duration(5.0))){
+                (ros::Time::now() - last_request > ros::Duration(5.0)))
+        {
             if( set_mode_client.call(offb_set_mode) &&
-                offb_set_mode.response.mode_sent){
+                    offb_set_mode.response.mode_sent)
+            {
                 ROS_INFO("Offboard enabled");
             }
             last_request = ros::Time::now();
-        } else {
+        }
+        else
+        {
             if( !current_state.armed &&
-                (ros::Time::now() - last_request > ros::Duration(5.0))){
+                    (ros::Time::now() - last_request > ros::Duration(5.0)))
+            {
                 if( arming_client.call(arm_cmd) &&
-                    arm_cmd.response.success){
+                        arm_cmd.response.success)
+                {
                     ROS_INFO("Vehicle armed");
                 }
                 last_request = ros::Time::now();
             }
         }
-	
-	//vel.angular.z += 0.5;
-        if(pos.pose.position.z > 1.5) {
-          local_vel_pub.publish(vel);
-          ROS_INFO("Published");
-	}
+
+        vel.angular.z += 0.1;
+        if(pos.pose.position.z > 1.5)
+        {
+            local_vel_pub.publish(vel);
+            ROS_INFO("Published");
+        }
 
         local_pos_pub.publish(pose);
 

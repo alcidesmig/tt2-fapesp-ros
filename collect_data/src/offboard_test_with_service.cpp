@@ -107,6 +107,7 @@ geometry_msgs::Quaternion aux_rotate_geometry;
 geometry_msgs::PoseStamped pose;
 double compass_diff = 0;
 double yaw_compass_start_value;
+float alt_min = 2, alt_max = 8;
 FILE *fp = NULL;
 
 static float CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C = 1.225;
@@ -132,7 +133,7 @@ void *thread_func_set_pos(void *args)
     // Pressão ambiente para o cálculo do true airspeed
     ros::Subscriber pressure_sub = nh.subscribe<sensor_msgs::FluidPressure>
                                    ("imu/atm_pressure", 1, get_pressure_value);
-    ros::Rate rate(72.0);
+    ros::Rate rate_thread(72.0);
     while(ros::ok())
     {
         if(collecting)
@@ -173,7 +174,7 @@ void *thread_func_set_pos(void *args)
         }
         local_pos_pub.publish(pose);
         ros::spinOnce();
-        rate.sleep();
+        rate_thread.sleep();
     }
 }
 
@@ -188,6 +189,8 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "drone_node");
 
     ros::NodeHandle nh;
+
+    ros::Rate rate(100.0);
 
     // Publicação do Pose
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
@@ -220,17 +223,17 @@ int main(int argc, char **argv)
     // Sensor de airspeed
     ros::Subscriber ms4525_sub = nh.subscribe<collect_data::MS4525>
                                  ("ms4525", 1, get_ms4525_data);
-                                 
+
     // Abre arquivo e lê o valor da velocidade da rotação e grava na constante de soma
     FILE * file_rotate = fopen("/home/pi/parameters.txt", "r");
     float divisor;
-    int return_scanf = fscanf(fp, "%f", &divisor);
-    fclose(fp);
-    if(return_scanf == 1) const_sum_quat /= divisor;
-
-    // Setpoint publishing rate (precisa ser > 2Hz)
-    ros::Rate rate(100.0); // 360/5 = 72
-
+    int return_scanf = fscanf(file_rotate, "%f %f %f", &divisor, &alt_min, &alt_max);
+    fclose(file_rotate);
+    if(return_scanf != 3) {
+        divisor = 1;
+        alt_min = 2;
+        alt_max = 5;
+    }
     // Espera conexão
     while(ros::ok() && !current_state.connected)
     {
@@ -261,11 +264,12 @@ int main(int argc, char **argv)
     // Último request
     ros::Time last_request = ros::Time::now();
 
-    // Gravar o 0 do sensor de airspeed
+    // Gravar o 0 do sensor de airspeed 
     fp = fopen(FILENAME, "a+");
     while(fp == NULL && !ms4525.valid); // Possível erro no while // Espera chegar algum dado do sensor de ms4525 para gravar o 0 do sensor de airspeed.
+    sleep(5); // Para dados consistentes do sensor
     fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f) - Dados válidos: %d", ms4525.indicated_airspeed, calc_true_airspeed_from_indicated(ms4525.indicated_airspeed, pressure_ambient.fluid_pressure, ms4525.temperature), ms4525.valid);
-    fclose(fp); 
+    fclose(fp);
     fp = NULL;
 
     // Último waypoint -> comparar com o atual para mudança de estado
@@ -277,8 +281,8 @@ int main(int argc, char **argv)
         switch(status)
         {
         case -1:
-            // Verifica se chegou em um waypoint comparando o último que foi registrado com o atual
-            if(last_waypoint != waypoint_num.wp_seq)
+            // Verifica se chegou em um waypoint comparando o último que foi registrado com o atual. Obs: o primeiro é descartado
+            if(last_waypoint != waypoint_num.wp_seq && waypoint_num.wp_seq != 0)
             {
                 last_waypoint = waypoint_num.wp_seq;
                 status = 0;
@@ -301,15 +305,15 @@ int main(int argc, char **argv)
             {
                 ROS_INFO("Offboard enabled");
                 offboard_enabled = ros::Time::now().toSec(); // Horário em que o modo offboard foi habilitado
-                pose.pose.position.z = 2; // Muda o valor da posição enviada para 2 metros (altura) para coleta de dados
+                pose.pose.position.z = alt_min; // Muda o valor da posição enviada para alt_min metros (altura) para coleta de dados
                 collecting = 0; // Garantir o valor correto para variável
             }
 
             if(current_state.mode == "OFFBOARD")
             {
 
-                // Se chegou a 2m de altura (tolerância = 0.3m), começa a coletar os dados
-                if(!collecting_5m && pos.pose.position.z - 2 < 0.3 && pos.pose.position.z - 2 > -0.3 && !collecting && current_state.mode == "OFFBOARD")
+                // Se chegou a alt_min metros de altura (tolerância = 0.3m), começa a coletar os dados
+                if(!collecting_5m && pos.pose.position.z - alt_min < 0.3 && pos.pose.position.z - alt_min > -0.3 && !collecting && current_state.mode == "OFFBOARD")
                 {
                     ROS_INFO("Chegou 2m");
                     value_quat2 = 0; // Zera o valor do quaternion utilizado na thread
@@ -339,7 +343,7 @@ int main(int argc, char **argv)
                     }
                     if(!collecting_5m && status != 1)
                     {
-                        pose.pose.position.z = 8; // Enviar o drone para 5m de altura
+                        pose.pose.position.z = alt_max; // Enviar o drone para 5m de altura
                         collecting_5m = 1; // Flag para saber se está na coleta de dados na altura de 5m ou 2m
                         can_compare_for_loop = 0;
                         value_quat2 = 0;
@@ -347,7 +351,7 @@ int main(int argc, char **argv)
                 }
 
                 // Se chegou a 5m de altura (tolerância = 0.3m), começa a coletar os dados
-                if(collecting_5m && (pos.pose.position.z - 8 < 0.3 && pos.pose.position.z - 8 > -0.3))
+                if(collecting_5m && (pos.pose.position.z - alt_max < 0.3 && pos.pose.position.z - alt_max > -0.3))
                 {
                     if(!collecting)
                     {

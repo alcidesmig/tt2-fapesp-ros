@@ -70,10 +70,10 @@ int main(int argc, char **argv)
 
     ros::NodeHandle nh;
 
-   // wiringPiSetup(); 
- //   pinMode(PIN, OUTPUT);
-    
-  //  digitalWrite(PIN, LOW);
+    // wiringPiSetup();
+    //   pinMode(PIN, OUTPUT);
+
+    //  digitalWrite(PIN, LOW);
 
     // Status do drone
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
@@ -86,14 +86,15 @@ int main(int argc, char **argv)
                                  ("ms4525", 1, get_ms4525_data);
 
     // Espera conexão com a PX
-    while(!current_state.connected) {
+    while(!current_state.connected)
+    {
         sleep(1);
     }
 
     // Abre arquivo dos paramêtros
-    FILE * fp = fopen("/home/pi/parameters.txt", "r");
+    FILE *fp = fopen("/home/pi/parameters.txt", "r");
 
-    // Formato: [velocidade rotação (2*pi/360/VALOR_PARAMETRO)] [altitude coleta minima] [altitude coleta máxima] 
+    // Formato: [velocidade rotação (2*pi/360/VALOR_PARAMETRO)] [altitude coleta minima] [altitude coleta máxima]
     float alt_min, alt_max, vel;
     fscanf(fp, "%f %f %f", &vel, &alt_min, &alt_max);
     fclose(fp);
@@ -101,10 +102,13 @@ int main(int argc, char **argv)
     bool parameters_ok = (alt_min >= 1 && alt_max <= 50 && vel > 0 && vel <= 10);
 
     // Verifica se os dados dos sensores são válidos
-    if(parameters_ok && (hdc1050.valid == 1) && (ms4525.valid == 1) && current_state.connected) {
-      //  digitalWrite(PIN, HIGH); // Acende o LED caso sim
-    } else {
-      //  digitalWrite(PIN, LOW); // Garantia
+    if(parameters_ok && (hdc1050.valid == 1) && (ms4525.valid == 1) && current_state.connected)
+    {
+        //  digitalWrite(PIN, HIGH); // Acende o LED caso sim
+    }
+    else
+    {
+        //  digitalWrite(PIN, LOW); // Garantia
     }
 
     return 0;

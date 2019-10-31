@@ -240,3 +240,6 @@ target_link_libraries(temp_humidity ${catkin_LIBRARIES})
 
 add_executable(uns_test src/uns_test.cpp)
 target_link_libraries(uns_test ${catkin_LIBRARIES})
+
+add_executable(init src/init.cpp)
+target_link_libraries(init ${catkin_LIBRARIES})

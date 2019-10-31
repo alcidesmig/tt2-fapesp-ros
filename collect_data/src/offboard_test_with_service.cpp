@@ -100,7 +100,8 @@ void get_pressure_value(const sensor_msgs::FluidPressure::ConstPtr &msg)
 
 double offboard_enabled = -1;
 int value_quaternion, collecting, cont_spin, collecting_5m, last_waypoint = -1, status = -1, can_compare_for_loop = 0;
-double value_quat2 = 0.00872664625 / 2;
+double value_quat2 = 0.0;
+double const_sum_quat = 0.01745329251; // 2*pi / 360
 tf::Quaternion aux_rotate_tf;
 geometry_msgs::Quaternion aux_rotate_geometry;
 geometry_msgs::PoseStamped pose;
@@ -144,7 +145,7 @@ void *thread_func_set_pos(void *args)
         {
             try
             {
-                value_quat2 += (0.00872664625 / 2); // 2*pi / 360 / 2
+                value_quat2 += const_sum_quat; // 2*pi / 360 / 2
                 ROS_INFO("Collecting quaternion = %f", value_quat2);
                 aux_rotate_tf = tf::createQuaternionFromYaw(value_quat2); // Valor (Quaternion) para rotação
                 quaternionTFToMsg(aux_rotate_tf, aux_rotate_geometry); // Conversão de tf::Quaternion para geometry_msgs::Quaternion
@@ -220,6 +221,12 @@ int main(int argc, char **argv)
     ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>
                               ("mavros/global_position/raw/fix", 1, get_gps_value);
 
+    // Abre arquivo e lê o valor da velocidade da rotação e grava na constante de soma
+    FILE * file_rotate = fopen("/home/pi/parameters.txt", "r");
+    float divisor;
+    int return_scanf = fscanf(fp, "%f", &divisor);
+    fclose(fp);
+    if(return_scanf == 1) const_sum_quat /= divisor;
 
     // Setpoint publishing rate (precisa ser > 2Hz)
     ros::Rate rate(100.0); // 360/5 = 72
@@ -256,9 +263,11 @@ int main(int argc, char **argv)
 
     // Gravar o 0 do sensor de airspeed
     fp = fopen(FILENAME, "a+");
-    if(fp != NULL) fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f) - Dados válidos: %d", ms4525.indicated_airspeed, calc_true_airspeed_from_indicated(ms4525.indicated_airspeed, pressure_ambient.fluid_pressure, ms4525.temperature), ms4525.valid);
-    fclose(fp);
+    while(fp == NULL && !ms4525.valid); // Possível erro no while // Espera chegar algum dado do sensor de ms4525 para gravar o 0 do sensor de airspeed.
+    fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f) - Dados válidos: %d", ms4525.indicated_airspeed, calc_true_airspeed_from_indicated(ms4525.indicated_airspeed, pressure_ambient.fluid_pressure, ms4525.temperature), ms4525.valid);
+    fclose(fp); 
     fp = NULL;
+
     // Último waypoint -> comparar com o atual para mudança de estado
     last_waypoint = waypoint_num.wp_seq;
     ROS_INFO_STREAM("First value for waypoint_num:" << waypoint_num.wp_seq);

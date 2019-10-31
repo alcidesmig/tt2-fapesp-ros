@@ -129,12 +129,6 @@ void *thread_func_set_pos(void *args)
     // Publicação do Pose
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>
                                    ("mavros/setpoint_position/local", 1);
-    // Sensor de temperatura
-    ros::Subscriber hdc1050_sub = nh.subscribe<collect_data::HDC1050>
-                                  ("hdc1050", 1, get_hdc1050_data);
-    // Sensor de airspeed
-    ros::Subscriber ms4525_sub = nh.subscribe<collect_data::MS4525>
-                                 ("ms4525", 1, get_ms4525_data);
     // Pressão ambiente para o cálculo do true airspeed
     ros::Subscriber pressure_sub = nh.subscribe<sensor_msgs::FluidPressure>
                                    ("imu/atm_pressure", 1, get_pressure_value);
@@ -220,7 +214,13 @@ int main(int argc, char **argv)
     // Dados de GPS
     ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>
                               ("mavros/global_position/raw/fix", 1, get_gps_value);
-
+    // Sensor de temperatura
+    ros::Subscriber hdc1050_sub = nh.subscribe<collect_data::HDC1050>
+                                  ("hdc1050", 1, get_hdc1050_data);
+    // Sensor de airspeed
+    ros::Subscriber ms4525_sub = nh.subscribe<collect_data::MS4525>
+                                 ("ms4525", 1, get_ms4525_data);
+                                 
     // Abre arquivo e lê o valor da velocidade da rotação e grava na constante de soma
     FILE * file_rotate = fopen("/home/pi/parameters.txt", "r");
     float divisor;

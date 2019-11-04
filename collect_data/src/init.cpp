@@ -43,7 +43,7 @@
 #include <collect_data/HDC1050.h>
 #include <collect_data/MS4525.h>
 
-#define PIN 1
+#define PIN 25
 
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
@@ -70,26 +70,35 @@ int main(int argc, char **argv)
 
     ros::NodeHandle nh;
 
-    // wiringPiSetup();
-    //   pinMode(PIN, OUTPUT);
 
-    //  digitalWrite(PIN, LOW);
+
+    // Arquivo de status do sistema
+    FILE * fp2;
+
+
+  //  wiringPiSetup();
+  //  pinMode(PIN, OUTPUT);
+
+  //  digitalWrite(PIN, LOW);
 
     // Status do drone
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
-                                ("mavros/state", 10, state_cb);
+                                ("mavros/state", 1, state_cb);
     // Sensor de temperatura
     ros::Subscriber hdc1050_sub = nh.subscribe<collect_data::HDC1050>
                                   ("hdc1050", 1, get_hdc1050_data);
     // Sensor de airspeed
     ros::Subscriber ms4525_sub = nh.subscribe<collect_data::MS4525>
                                  ("ms4525", 1, get_ms4525_data);
-
+    fp2 = fopen("/home/pi/status.txt", "a+");
     // Espera conexão com a PX
     while(!current_state.connected)
     {
-        sleep(1);
+        fprintf(fp2, "Status: NOT OK. Waiting PX4 Connection.");
+	sleep(1);
     }
+
+    fclose(fp2);
 
     // Abre arquivo dos paramêtros
     FILE *fp = fopen("/home/pi/parameters.txt", "r");
@@ -100,16 +109,23 @@ int main(int argc, char **argv)
     fclose(fp);
     // Variável que indica que os parâmetros estão OK.
     bool parameters_ok = (alt_min >= 1 && alt_max <= 50 && vel > 0 && vel <= 10);
+    sleep(10);
+    fp2 = fopen("/home/pi/status.txt", "w");
 
     // Verifica se os dados dos sensores são válidos
     if(parameters_ok && (hdc1050.valid == 1) && (ms4525.valid == 1) && current_state.connected)
     {
-        //  digitalWrite(PIN, HIGH); // Acende o LED caso sim
+      //  digitalWrite(PIN, HIGH); // Acende o LED caso sim
+	fprintf(fp2, "Status: OK");
     }
     else
     {
-        //  digitalWrite(PIN, LOW); // Garantia
+      //  digitalWrite(PIN, LOW); // Garantia
+	fprintf(fp2, "Status: NOT OK");
     }
+
+    fclose(fp);
+    fclose(fp2);
 
     return 0;
 }

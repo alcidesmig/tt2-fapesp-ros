@@ -99,7 +99,7 @@ void get_pressure_value(const sensor_msgs::FluidPressure::ConstPtr &msg)
 
 
 double offboard_enabled = -1;
-int value_quaternion, collecting, cont_spin, collecting_2_point, collecting_3_point, last_waypoint = -1, status = -1, can_compare_for_loop = 0;
+int value_quaternion, collecting, cont_spin, collecting_2_point = 0, collecting_3_point = 0, last_waypoint = -1, status = -1, can_compare_for_loop = 0;
 double value_quat2 = 0.0;
 double const_sum_quat = 0.01745329251; // 2*pi / 360
 tf::Quaternion aux_rotate_tf;
@@ -185,7 +185,6 @@ double diff(double x, double y)
 
 int main(int argc, char **argv)
 {
-
     ros::init(argc, argv, "drone_node");
 
     ros::NodeHandle nh;
@@ -234,7 +233,7 @@ int main(int argc, char **argv)
         divisor = 1;
         alt_1_point = 2;
         alt_2_point = 5;
-        alt_2_point = 10;
+        alt_3_point = 10;
     }
     // Espera conexão
     while(ros::ok() && !current_state.connected)
@@ -278,7 +277,7 @@ int main(int argc, char **argv)
     last_waypoint = waypoint_num.wp_seq;
     ROS_INFO_STREAM("First value for waypoint_num:" << waypoint_num.wp_seq);
 
-    while(ros::ok())
+   while(ros::ok())
     {
         switch(status)
         {
@@ -315,7 +314,7 @@ int main(int argc, char **argv)
             {
 
                 // Se chegou a alt_1_point metros de altura (tolerância = 0.3m), começa a coletar os dados
-                if(!collecting_2_point && pos.pose.position.z - alt_1_point < 0.3 && pos.pose.position.z - alt_1_point > -0.3 && !collecting && current_state.mode == "OFFBOARD")
+                if(!collecting_2_point && !collecting_3_point && pos.pose.position.z - alt_1_point < 0.3 && pos.pose.position.z - alt_1_point > -0.3 && !collecting && current_state.mode == "OFFBOARD")
                 {
                     ROS_INFO("Chegou 2m");
                     value_quat2 = 0; // Zera o valor do quaternion utilizado na thread
@@ -328,35 +327,42 @@ int main(int argc, char **argv)
                     collecting = 1; // Coletando = SIM
                 }
 
-                ROS_INFO("Compass: %f Diff: %f", compass.data, compass.data - compass_diff);
+              //  ROS_INFO("Compass: %f Diff: %f", compass.data, compass.data - compass_diff);
                 compass_diff = compass.data;
 
                 // Compara a posição (bússola) atual com a posição de início caso o drone já tenha dado meia volta
-                if(collecting && ((can_compare_for_loop && diff(yaw_compass_start_value, compass.data) < 3) || value_quat2 > 2) )
+                if(collecting && ((can_compare_for_loop && diff(yaw_compass_start_value, compass.data) < 3) || value_quat2 > 6.28318530718) )
                 {
+                    ROS_INFO_STREAM("Can compare for loop" << can_compare_for_loop);
+                    ROS_INFO_STREAM("Yaw Diff" << diff(yaw_compass_start_value, compass.data));
+                    ROS_INFO_STREAM("Value quat" << value_quat2);
+
                     collecting = 0; // Para de coletar
                     if(collecting_3_point) // Se coletou dados no 3 ponto de coleta
                     {
                         status = 1; // Finaliza a coleta de dados
                         collecting_3_point = 0;
                         fclose(fp);
+                        ROS_INFO("Finalizou coleta");
                         fp = NULL;
                     }
-                    if(collecting_2_point) // Se coletou dados no 2 ponto de coleta
+                    else if(collecting_2_point) // Se coletou dados no 2 ponto de coleta
                     {
                         collecting_2_point = 0; // Flag para saber em que ponto está na coleta de dados
                         can_compare_for_loop = 0;
                         value_quat2 = 0;
                         collecting_3_point = 1;
                         pose.pose.position.z = alt_3_point; // Enviar o drone para a altura do 3 ponto de coleta
-
+                        ROS_INFO("Vai p 3 ponto");
                     }
-                    if(!collecting_2_point && !collecting_3_point && status != 1)
+                    else if(!collecting_2_point && !collecting_3_point && status != 1)
                     {
                         pose.pose.position.z = alt_2_point; // Enviar o drone para a altura do segundo ponto de coleta
                         collecting_2_point = 1; // Flag para saber em que ponto está na coleta de dados
                         can_compare_for_loop = 0;
+
                         value_quat2 = 0;
+                        ROS_INFO("Vai p 2 ponto");
                     }
                 }
 
@@ -385,6 +391,7 @@ int main(int argc, char **argv)
                 {
                     can_compare_for_loop = 1;
                     ROS_INFO("Now can compare for loop");
+                    yaw_compass_start_value = -500;
                 }
 
             }
@@ -415,4 +422,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-

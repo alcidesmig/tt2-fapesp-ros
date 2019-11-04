@@ -125,7 +125,7 @@ include_directories(
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/beginner_tutorials.cpp
+#     wiringPi.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -226,8 +226,8 @@ target_link_libraries(rotine ${catkin_LIBRARIES})
 add_executable(offboard_test_from_pos src/offboard_test_from_pos.cpp)
 target_link_libraries(offboard_test_from_pos ${catkin_LIBRARIES})
 
-add_executable(offboard_test_with_service src/offboard_test_with_service.cpp)
-target_link_libraries(offboard_test_with_service ${catkin_LIBRARIES})
+add_executable(drone_node src/offboard_test_with_service.cpp)
+target_link_libraries(drone_node ${catkin_LIBRARIES})
 
 add_executable(free_collect_data src/free_collect_data.cpp)
 target_link_libraries(free_collect_data ${catkin_LIBRARIES})
@@ -241,5 +241,6 @@ target_link_libraries(temp_humidity ${catkin_LIBRARIES})
 add_executable(uns_test src/uns_test.cpp)
 target_link_libraries(uns_test ${catkin_LIBRARIES})
 
-add_executable(init src/init.cpp)
-target_link_libraries(init ${catkin_LIBRARIES})
+add_executable(init src/init.cpp) #wiringPi.h)
+#find_library(WIRINGPI_LIB NAMES wiringPi)
+target_link_libraries(init ${catkin_LIBRARIES}) #${WIRINGPI_LIB})

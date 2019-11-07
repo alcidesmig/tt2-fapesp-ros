@@ -1,21 +1,4 @@
-// (ok) gravar indic e true airspeed, humidade, lat, long, timestamp
-// fazer checagem dos sensores, do arquivo dentro do nó master, acender led = ok, piscar led = !ok
-// (ok) mudar para 10s a rotação
-// (ok) quaternion para determinar parada, quando bater 2pi + offset
-// (ok) arrumar arquivo = segfault
-// (ok) tratar excessao do arquivo para n crashar ros
-// (ok) gravar o 0 do sensor de airspeed (true, indicated) para fazer compensação (tapar tubo quando ligar o sistema)
-
-
 // to do: serviço para calcular o true airspeed
-
-// quarta manhã 8h usp2
-
-/**
- * @file offb_node.cpp
- * @brief Offboard control example node, written with MAVROS version 0.19.x, PX4 Pro Flight
- * Stack and tested in Gazebo SITL
- */
 
 #include <ros/ros.h>
 

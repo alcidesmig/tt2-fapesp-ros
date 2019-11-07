@@ -34,7 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#include <wiringPi.h> // http://wiringpi.com/download-and-install/
+#include <wiringPi.h> // http://wiringpi.com/download-and-install/
 
 #include <math.h>
 
@@ -43,7 +43,7 @@
 #include <collect_data/HDC1050.h>
 #include <collect_data/MS4525.h>
 
-#define PIN 25
+#define PIN 16
 
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
@@ -66,7 +66,7 @@ void get_ms4525_data(const collect_data::MS4525::ConstPtr &msg)
 int main(int argc, char **argv)
 {
 
-    ros::init(argc, argv, "drone_node");
+    ros::init(argc, argv, "test_drone_system");
 
     ros::NodeHandle nh;
 
@@ -76,11 +76,12 @@ int main(int argc, char **argv)
     FILE * fp2;
 
 
-  //  wiringPiSetup();
-  //  pinMode(PIN, OUTPUT);
+    wiringPiSetup();
+    pinMode(PIN, OUTPUT);
 
-  //  digitalWrite(PIN, LOW);
-
+    //digitalWrite(PIN, LOW);
+    pullUpDnControl(PIN, PUD_UP); // Invertido por conta da NOT
+    
     // Status do drone
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
                                 ("mavros/state", 1, state_cb);
@@ -104,23 +105,25 @@ int main(int argc, char **argv)
     FILE *fp = fopen("/home/pi/parameters.txt", "r");
 
     // Formato: [velocidade rotação (2*pi/360/VALOR_PARAMETRO)] [altitude coleta minima] [altitude coleta máxima]
-    float alt_min, alt_max, vel;
-    fscanf(fp, "%f %f %f", &vel, &alt_min, &alt_max);
+    float alt_1, alt_2, alt_3, vel;
+    int return_scanf = fscanf(fp, "%f %f %f %f", &vel, &alt_1, &alt_2, &alt_3);
     fclose(fp);
     // Variável que indica que os parâmetros estão OK.
-    bool parameters_ok = (alt_min >= 1 && alt_max <= 50 && vel > 0 && vel <= 10);
+    bool parameters_ok = return_scanf == 4 && (alt_1 >= 1 && alt_1 <= 100 && alt_2 >= 1 && alt_2 <= 100 && alt_3 >= 1 && alt_3 <= 100 && vel > 0 && vel <= 50);
     sleep(10);
     fp2 = fopen("/home/pi/status.txt", "w");
 
     // Verifica se os dados dos sensores são válidos
     if(parameters_ok && (hdc1050.valid == 1) && (ms4525.valid == 1) && current_state.connected)
     {
-      //  digitalWrite(PIN, HIGH); // Acende o LED caso sim
+        //digitalWrite(PIN, HIGH);
+	pullUpDnControl(PIN, PUD_DOWN); // Acende o LED caso tudo ok
 	fprintf(fp2, "Status: OK");
     }
     else
     {
-      //  digitalWrite(PIN, LOW); // Garantia
+      //digitalWrite(PIN, LOW);
+	pullUpDnControl(PIN, PUD_UP); // Garantia do LED apagado
 	fprintf(fp2, "Status: NOT OK");
     }
 

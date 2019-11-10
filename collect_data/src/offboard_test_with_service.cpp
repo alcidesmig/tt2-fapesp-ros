@@ -206,13 +206,13 @@ void *thread_func_set_pos(void *args)
                                 "%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
                                 hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.pose.position.z, time_reference.time_ref.sec, complete_timestamp
                                );
-			if(alt_point != -1 && /*true_airspeed*/indicated_airspeed/**/ > max_airspeed[alt_point-1]){
+			if(alt_point != -1 && true_airspeed/*indicated_airspeed*/ > max_airspeed[alt_point-1]){
 			    strcpy(data[alt_point-1], "");
 			    sprintf(data[alt_point-1],
                                 "%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
                                 hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.pose.position.z, time_reference.time_ref.sec, complete_timestamp
                                );
-                            max_airspeed[alt_point-1] = /**/indicated_airspeed;/*true_airspeed; */ 
+                            max_airspeed[alt_point-1] = /*indicated_airspeed;*/true_airspeed;
 			}
 			free(complete_timestamp);
                     }

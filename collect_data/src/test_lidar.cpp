@@ -199,13 +199,13 @@ void *thread_func_set_pos(void *args)
                         char * complete_timestamp = get_complete_timestamp();
 			fprintf(fp,
                                 "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
-                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, (compass.data + 180) % 360, gps.latitude, gps.longitude, gps.altitude, rel_alt, lidar.range, time_reference.time_ref.sec, complete_timestamp
+                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, fmod((compass.data + 180), 360), gps.latitude, gps.longitude, gps.altitude, rel_alt.data, lidar.range, time_reference.time_ref.sec, complete_timestamp
                                );
 			if(alt_point != -1 && true_airspeed/*indicated_airspeed*/ > max_airspeed[alt_point-1]){
 			    strcpy(data[alt_point-1], "");
 			    sprintf(data[alt_point-1],
                                 "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
-                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, (compass.data + 180) % 360, gps.latitude, gps.longitude, gps.altitude, rel_alt, lidar.range, time_reference.time_ref.sec, complete_timestamp
+                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, fmod((compass.data + 180), 360), gps.latitude, gps.longitude, gps.altitude, rel_alt.data, lidar.range, time_reference.time_ref.sec, complete_timestamp
                                );
                             max_airspeed[alt_point-1] = /*indicated_airspeed;*/true_airspeed;
 			}
@@ -366,14 +366,14 @@ int main(int argc, char **argv)
                 ROS_INFO("Offboard enabled");
                 offboard_enabled = ros::Time::now().toSec(); // Horário em que o modo offboard foi habilitado
                 if(valid_lidar) pose.pose.position.z = pos.pose.position.z - lidar.range + alt_1_point; // Muda o valor da posição enviada para alt_1_point metros (altura) para coleta de dados
-		else pose.pose.position.z = pos.pose.position.z - rel_alt + alt_1_point;
+		else pose.pose.position.z = pos.pose.position.z - rel_alt.data + alt_1_point;
                 collecting = 0; // Garantir o valor correto para variável
             }
 
             if(current_state.mode == "OFFBOARD")
             {
 
-		if(!valid_lidar) altitude = rel_alt;
+		if(!valid_lidar) altitude = rel_alt.data;
 		else altitude = lidar.range;
 		    
 		// Se chegou a alt_1_point metros de altura (tolerância = 0.3m), começa a coletar os dados
@@ -427,7 +427,7 @@ int main(int argc, char **argv)
 			alt_point = 3;
                         collecting_3_point = 1;
 			if(valid_lidar) pose.pose.position.z = pos.pose.position.z - lidar.range + alt_3_point; // Muda o valor da posição enviada para alt_3_point metros (altura) para coleta de dados
-	                else pose.pose.position.z = pos.pose.position.z - rel_alt + alt_3_point;
+	                else pose.pose.position.z = pos.pose.position.z - rel_alt.data + alt_3_point;
 
                         ROS_INFO("Vai p 3 ponto");
                     }
@@ -435,7 +435,7 @@ int main(int argc, char **argv)
                     {
                         collecting_2_point = 1; // Flag para saber em que ponto está na coleta de dados
                         if(valid_lidar) pose.pose.position.z = pos.pose.position.z - lidar.range + alt_2_point; // Muda o valor da posição enviada para alt_2_point metros (altura) para coleta de dados
-	                else pose.pose.position.z = pos.pose.position.z - rel_alt + alt_2_point;
+	                else pose.pose.position.z = pos.pose.position.z - rel_alt.data + alt_2_point;
 			can_compare_for_loop = 0;
 			alt_point = 2;
                         value_quat2 = 0;

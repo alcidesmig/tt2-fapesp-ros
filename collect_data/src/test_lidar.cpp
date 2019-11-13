@@ -94,6 +94,11 @@ void get_lidar_data(const sensor_msgs::Range::ConstPtr &msg)
     lidar = *msg;
 }
 
+std_msgs::Float64 rel_alt;
+void get_rel_alt(const std_msgs::Float64::ConstPtr &msg) 
+{
+    rel_alt = *msg;
+}
 
 double offboard_enabled = -1;
 int value_quaternion, collecting, cont_spin, collecting_2_point = 0, collecting_3_point = 0, last_waypoint = -1, status = -1, can_compare_for_loop = 0;
@@ -194,15 +199,15 @@ void *thread_func_set_pos(void *args)
                         char * complete_timestamp = get_complete_timestamp();
 			fprintf(fp,
                                 "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
-                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.pose.position.z, lidar.range, time_reference.time_ref.sec, complete_timestamp
+                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, (compass.data + 180) % 360, gps.latitude, gps.longitude, gps.altitude, rel_alt, lidar.range, time_reference.time_ref.sec, complete_timestamp
                                );
-			if(alt_point != -1 && /*true_airspeed*/indicated_airspeed/**/ > max_airspeed[alt_point-1]){
+			if(alt_point != -1 && true_airspeed/*indicated_airspeed*/ > max_airspeed[alt_point-1]){
 			    strcpy(data[alt_point-1], "");
 			    sprintf(data[alt_point-1],
                                 "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
-                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.pose.position.z, lidar.range, time_reference.time_ref.sec, complete_timestamp
+                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, (compass.data + 180) % 360, gps.latitude, gps.longitude, gps.altitude, rel_alt, lidar.range, time_reference.time_ref.sec, complete_timestamp
                                );
-                            max_airspeed[alt_point-1] = /**/indicated_airspeed;/*true_airspeed; */ 
+                            max_airspeed[alt_point-1] = /*indicated_airspeed;*/true_airspeed;
 			}
 			free(complete_timestamp);
                     }
@@ -263,9 +268,11 @@ int main(int argc, char **argv)
     // Sensor de airspeed
     ros::Subscriber ms4525_sub = nh.subscribe<collect_data::MS4525>
                                  ("ms4525", 1, get_ms4525_data);
-
-    ros::Subscriber range_lidar = nh.subscribe<sensor_msgs::Range>
+    // Sensor lidar: altitude
+    ros::Subscriber range_lidar_sub = nh.subscribe<sensor_msgs::Range>
 	    			("mavros/distance_sensor/lidarlite_pub", 1, get_lidar_data);
+    // Altitude pelo sensor barométrico
+    ros::Subscriber rel_alt_sub = nh.subscribe<std_msgs::Float64>("mavros/global_position/rel_alt", 1, get_rel_alt);
 
     // Abre arquivo e lê o valor da velocidade da rotação e grava na constante de soma
     FILE *file_rotate = fopen("/home/pi/parameters.txt", "r");
@@ -359,20 +366,19 @@ int main(int argc, char **argv)
                 ROS_INFO("Offboard enabled");
                 offboard_enabled = ros::Time::now().toSec(); // Horário em que o modo offboard foi habilitado
                 if(valid_lidar) pose.pose.position.z = pos.pose.position.z - lidar.range + alt_1_point; // Muda o valor da posição enviada para alt_1_point metros (altura) para coleta de dados
-		else pose.pose.position.z = alt_1_point;
+		else pose.pose.position.z = pos.pose.position.z - rel_alt + alt_1_point;
                 collecting = 0; // Garantir o valor correto para variável
             }
 
             if(current_state.mode == "OFFBOARD")
             {
 
-		if(!valid_lidar) altitude = pos.pose.position.z;
+		if(!valid_lidar) altitude = rel_alt;
 		else altitude = lidar.range;
 		    
 		// Se chegou a alt_1_point metros de altura (tolerância = 0.3m), começa a coletar os dados
                 if(!collecting_2_point && !collecting_3_point && altitude - alt_1_point < 0.3 && altitude - alt_1_point > -0.3 && !collecting && current_state.mode == "OFFBOARD")
                 {
-                    ROS_INFO("Chegou 2m");
                     value_quat2 = 0; // Zera o valor do quaternion utilizado na thread
                     yaw_compass_start_value = compass.data; // Posição de início de coleta de dados
                     value_quaternion = 0; // Valor para ser usado para calcular o Quaternion
@@ -421,7 +427,7 @@ int main(int argc, char **argv)
 			alt_point = 3;
                         collecting_3_point = 1;
 			if(valid_lidar) pose.pose.position.z = pos.pose.position.z - lidar.range + alt_3_point; // Muda o valor da posição enviada para alt_3_point metros (altura) para coleta de dados
-	                else pose.pose.position.z = alt_3_point;
+	                else pose.pose.position.z = pos.pose.position.z - rel_alt + alt_3_point;
 
                         ROS_INFO("Vai p 3 ponto");
                     }
@@ -429,7 +435,7 @@ int main(int argc, char **argv)
                     {
                         collecting_2_point = 1; // Flag para saber em que ponto está na coleta de dados
                         if(valid_lidar) pose.pose.position.z = pos.pose.position.z - lidar.range + alt_2_point; // Muda o valor da posição enviada para alt_2_point metros (altura) para coleta de dados
-	                else pose.pose.position.z = alt_2_point;
+	                else pose.pose.position.z = pos.pose.position.z - rel_alt + alt_2_point;
 			can_compare_for_loop = 0;
 			alt_point = 2;
                         value_quat2 = 0;

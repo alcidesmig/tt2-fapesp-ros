@@ -193,14 +193,14 @@ void *thread_func_set_pos(void *args)
                     {
                         char * complete_timestamp = get_complete_timestamp();
 			fprintf(fp,
-                                "%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
-                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.pose.position.z, time_reference.time_ref.sec, complete_timestamp
+                                "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
+                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.pose.position.z, lidar.range, time_reference.time_ref.sec, complete_timestamp
                                );
 			if(alt_point != -1 && /*true_airspeed*/indicated_airspeed/**/ > max_airspeed[alt_point-1]){
 			    strcpy(data[alt_point-1], "");
 			    sprintf(data[alt_point-1],
-                                "%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
-                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.pose.position.z, time_reference.time_ref.sec, complete_timestamp
+                                "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
+                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.pose.position.z, lidar.range, time_reference.time_ref.sec, complete_timestamp
                                );
                             max_airspeed[alt_point-1] = /**/indicated_airspeed;/*true_airspeed; */ 
 			}
@@ -329,7 +329,7 @@ int main(int argc, char **argv)
    while(ros::ok())
     {
 	double altitude;
-        int valid_lidar = !(isinf(lidar.range) || isinf(-lidar.range));
+        int valid_lidar = lidar.range >= 0.1 && lidar.range <= 10;
 
         switch(status)
         {

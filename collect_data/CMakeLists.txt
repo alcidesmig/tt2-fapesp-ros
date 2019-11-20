@@ -226,8 +226,8 @@ target_link_libraries(rotine ${catkin_LIBRARIES})
 add_executable(offboard_test_from_pos src/offboard_test_from_pos.cpp)
 target_link_libraries(offboard_test_from_pos ${catkin_LIBRARIES})
 
-add_executable(drone_node src/offboard_test_with_service.cpp)
-target_link_libraries(drone_node ${catkin_LIBRARIES})
+add_executable(drone_node2 src/offboard_test_with_service.cpp)
+target_link_libraries(drone_node2 ${catkin_LIBRARIES})
 
 add_executable(free_collect_data src/free_collect_data.cpp)
 target_link_libraries(free_collect_data ${catkin_LIBRARIES})
@@ -241,6 +241,9 @@ target_link_libraries(temp_humidity ${catkin_LIBRARIES})
 add_executable(uns_test src/uns_test.cpp)
 target_link_libraries(uns_test ${catkin_LIBRARIES})
 
-add_executable(init src/init.cpp) #wiringPi.h)
-#find_library(WIRINGPI_LIB NAMES wiringPi)
-target_link_libraries(init ${catkin_LIBRARIES}) #${WIRINGPI_LIB})
+#add_executable(init src/init.cpp) #wiringPi.h)
+#find_library(WIRINGPI_LIB wiringPi)
+#target_link_libraries(init ${catkin_LIBRARIES} ${WIRINGPI_LIB})
+
+add_executable(test_lidar src/test_lidar.cpp)
+target_link_libraries(test_lidar ${catkin_LIBRARIES})

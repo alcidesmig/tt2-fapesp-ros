@@ -14,16 +14,25 @@
 
 #include <sensor_msgs/NavSatFix.h>
 #include <sensor_msgs/FluidPressure.h>
+#include <sensor_msgs/Range.h>
+
+#include <geometry_msgs/PoseStamped.h>
 
 #include <collect_data/HDC1050.h>
 #include <collect_data/MS4525.h>
 
-#define FILENAME "/tmp/data.txt"
+#define FILENAME "/mnt/pendrive/data.txt"
 
 std_msgs::Float64 compass;
 void get_compass_value(const std_msgs::Float64::ConstPtr &msg)
 {
     compass = *msg;
+}
+
+std_msgs::Float64 rel_alt;
+void get_rel_alt(const std_msgs::Float64::ConstPtr &msg)
+{
+    rel_alt = *msg;
 }
 
 collect_data::HDC1050 hdc1050;
@@ -49,6 +58,20 @@ void get_pressure_value(const sensor_msgs::FluidPressure::ConstPtr &msg)
 {
     pressure_ambient = *msg;
 }
+
+geometry_msgs::PoseStamped pos;
+void get_pos(const geometry_msgs::PoseStamped::ConstPtr &msg)
+{
+    pos = *msg;
+}
+
+sensor_msgs::Range lidar;
+void get_lidar(const sensor_msgs::Range::ConstPtr &msg)
+{
+    lidar = *msg;
+}
+
+
 
 
 static float CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C = 1.225;
@@ -88,6 +111,11 @@ int main(int argc, char **argv)
     // Dados de GPS
     ros::Subscriber gps_sub = nh.subscribe<sensor_msgs::NavSatFix>
                               ("mavros/global_position/global", 1, get_gps_value);
+    ros::Subscriber rel_alt_sub = nh.subscribe<std_msgs::Float64>("mavros/global_position/rel_alt", 1, get_rel_alt);
+
+     // Pegar a posição do drone
+    ros::Subscriber pos_sub = nh.subscribe<geometry_msgs::PoseStamped>("mavros/local_position/pose", 1, get_pos);
+    ros::Subscriber lidar_sub = nh.subscribe<sensor_msgs::Range>("mavros/distance_sensor/lidarlite_pub", 1, get_lidar);
 
     fp = fopen(FILENAME, "a+");
     if(fp != NULL)
@@ -127,8 +155,8 @@ int main(int argc, char **argv)
                 if(hdc1050.valid && ms4525.valid)
                 {
                     fprintf(fp,
-                            "%f;%f;%f;%f;%f;%f;%f;%d\n",
-                            hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
+                            "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d\n",
+                            pos.pose.position.z, rel_alt, lidar.range, hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, (int) time(NULL)
                            );
                 }
             }
@@ -137,6 +165,9 @@ int main(int argc, char **argv)
         {
             ROS_INFO("ERROR - COLLECTING");
         }
+
+	ROS_INFO("Distance\n\tLidar: %f\n\tPose: %f\n\tRel_alt: %f", lidar.range, pos.pose.position.z, rel_alt);
+
         ros::spinOnce();
         rate.sleep();
 

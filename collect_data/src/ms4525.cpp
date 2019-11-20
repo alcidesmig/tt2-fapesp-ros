@@ -105,16 +105,20 @@ public:
                 float diff_press_pa_raw = diff_press_PSI * PSI_to_Pa;
                 double airspeed_aux = calc_indicated_airspeed(diff_press_pa_raw);
 
-                float airspeed_to_remove = avg[current_avg_index]; // Pega o valor para remover da soma para média móvel
-                sum_avg -= airspeed_to_remove;                     // Remove o valor da soma da média
-                avg[current_avg_index] = airspeed_aux;             // Coloca o novo valor no vetor 
-                sum_avg += airspeed_aux;                           // Adiciona o novo valor na soma da média
-                current_avg_index = (current_avg_index + 1) % 20;  // Calcula o novo índice de remoção do vetor de valores
+		if(airspeed_aux >= 0)
+		{
 
-                airspeed = sum_avg / 20;
-                temp = temperature;
-                valid = 1;
-            } else {
+                	float airspeed_to_remove = avg[current_avg_index]; // Pega o valor para remover da soma para média móvel
+	                sum_avg -= airspeed_to_remove;                     // Remove o valor da soma da média
+	                avg[current_avg_index] = airspeed_aux;             // Coloca o novo valor no vetor 
+	                sum_avg += airspeed_aux;                           // Adiciona o novo valor na soma da média
+	                current_avg_index = (current_avg_index + 1) % 20;  // Calcula o novo índice de remoção do vetor de valores
+	
+	                airspeed = sum_avg / 20;
+	                temp = temperature;
+	                valid = 1;
+		}        
+	    } else {
                 valid = 0;
             }
         }

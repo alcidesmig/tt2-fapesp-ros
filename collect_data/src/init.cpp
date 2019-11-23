@@ -43,7 +43,7 @@
 #include <collect_data/HDC1050.h>
 #include <collect_data/MS4525.h>
 
-#define PIN 16
+#define PIN 4
 
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
@@ -70,17 +70,17 @@ int main(int argc, char **argv)
 
     ros::NodeHandle nh;
 
-
-
-    // Arquivo de status do sistema
-    FILE * fp2;
-
-
     wiringPiSetup();
     pinMode(PIN, OUTPUT);
 
-    //digitalWrite(PIN, LOW);
-    pullUpDnControl(PIN, PUD_UP); // Invertido por conta da NOT
+    pullUpDnControl(4, PUD_DOWN); 
+
+
+//    ms4525.valid = 0;
+//    hdc1050.valid = 0;
+
+    //digitalWrite(PIN, LOW);		    E
+    digitalWrite(PIN, 0); // Invertido por conta da NOT
     
     // Status do drone
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
@@ -91,17 +91,14 @@ int main(int argc, char **argv)
     // Sensor de airspeed
     ros::Subscriber ms4525_sub = nh.subscribe<collect_data::MS4525>
                                  ("ms4525", 1, get_ms4525_data);
-    fp2 = fopen("/home/pi/status.txt", "a+");
     // Espera conexão com a PX
     while(!current_state.connected)
     {
-        fprintf(fp2, "Status: NOT OK. Waiting PX4 Connection.");
+        //ROS_INFO("Status: NOT OK. Waiting PX4 Connection.");
 	sleep(1);
     }
 
-    fclose(fp2);
-
-    // Abre arquivo dos paramêtros
+    // Abre arquivo dos parâmetros
     FILE *fp = fopen("/home/pi/parameters.txt", "r");
 
     // Formato: [velocidade rotação (2*pi/360/VALOR_PARAMETRO)] [altitude coleta minima] [altitude coleta máxima]
@@ -111,24 +108,20 @@ int main(int argc, char **argv)
     // Variável que indica que os parâmetros estão OK.
     bool parameters_ok = return_scanf == 4 && (alt_1 >= 1 && alt_1 <= 100 && alt_2 >= 1 && alt_2 <= 100 && alt_3 >= 1 && alt_3 <= 100 && vel > 0 && vel <= 50);
     sleep(10);
-    fp2 = fopen("/home/pi/status.txt", "w");
 
     // Verifica se os dados dos sensores são válidos
     if(parameters_ok && (hdc1050.valid == 1) && (ms4525.valid == 1) && current_state.connected)
     {
         //digitalWrite(PIN, HIGH);
-	pullUpDnControl(PIN, PUD_DOWN); // Acende o LED caso tudo ok
-	fprintf(fp2, "Status: OK");
+	digitalWrite(PIN, 1); // Acende o LED caso tudo ok
     }
     else
     {
       //digitalWrite(PIN, LOW);
-	pullUpDnControl(PIN, PUD_UP); // Garantia do LED apagado
-	fprintf(fp2, "Status: NOT OK");
+	digitalWrite(PIN, 0); // Garantia do LED apagado
     }
 
     fclose(fp);
-    fclose(fp2);
 
     return 0;
 }

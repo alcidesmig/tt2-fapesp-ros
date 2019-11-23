@@ -241,9 +241,9 @@ target_link_libraries(temp_humidity ${catkin_LIBRARIES})
 add_executable(uns_test src/uns_test.cpp)
 target_link_libraries(uns_test ${catkin_LIBRARIES})
 
-#add_executable(init src/init.cpp) #wiringPi.h)
-#find_library(WIRINGPI_LIB wiringPi)
-#target_link_libraries(init ${catkin_LIBRARIES} ${WIRINGPI_LIB})
+add_executable(init src/init.cpp) #wiringPi.h)
+find_library(WIRINGPI_LIB wiringPi)
+target_link_libraries(init ${catkin_LIBRARIES} ${WIRINGPI_LIB})
 
 add_executable(test_lidar src/test_lidar.cpp)
 target_link_libraries(test_lidar ${catkin_LIBRARIES})

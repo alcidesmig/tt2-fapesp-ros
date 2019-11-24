@@ -49,7 +49,7 @@
 #include <collect_data/HDC1050.h>
 #include <collect_data/MS4525.h>
 
-#define FILENAME "/tmp/data.txt"
+#define FILENAME "/mnt/pendrive/data.txt"
 
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
@@ -442,7 +442,7 @@ int main(int argc, char **argv)
                         ROS_INFO("Finalizou coleta");
                         fp = NULL;
                         alt_point = -1;
-                        FILE *regina = fopen("/tmp/regina.txt", "a");
+			FILE *regina = fopen("/mnt/pendrive/regina.txt", "a");
                         fprintf(regina, "Waypoint %d\n", last_waypoint);
                         fprintf(regina, "%s -", data[0]);
                         fprintf(regina, "%s -", data[1]);

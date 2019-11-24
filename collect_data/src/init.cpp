@@ -43,7 +43,7 @@
 #include <collect_data/HDC1050.h>
 #include <collect_data/MS4525.h>
 
-#define PIN 25
+#define PIN 4
 
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
@@ -73,8 +73,14 @@ int main(int argc, char **argv)
     wiringPiSetup();
     pinMode(PIN, OUTPUT);
 
-    //digitalWrite(PIN, LOW);
-    digitalWrite(PIN, 1); // Invertido por conta da NOT
+    pullUpDnControl(4, PUD_DOWN); 
+
+
+//    ms4525.valid = 0;
+//    hdc1050.valid = 0;
+
+    //digitalWrite(PIN, LOW);		    E
+    digitalWrite(PIN, 0); // Invertido por conta da NOT
     
     // Status do drone
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
@@ -107,12 +113,12 @@ int main(int argc, char **argv)
     if(parameters_ok && (hdc1050.valid == 1) && (ms4525.valid == 1) && current_state.connected)
     {
         //digitalWrite(PIN, HIGH);
-	digitalWrite(PIN, 0); // Acende o LED caso tudo ok
+	digitalWrite(PIN, 1); // Acende o LED caso tudo ok
     }
     else
     {
       //digitalWrite(PIN, LOW);
-	digitalWrite(PIN, 1); // Garantia do LED apagado
+	digitalWrite(PIN, 0); // Garantia do LED apagado
     }
 
     fclose(fp);

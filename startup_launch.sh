@@ -8,4 +8,4 @@ rosrun collect_data ms4525 &
 rosrun collect_data hdc1050 &
 rosrun collect_data init &
 rosrun collect_data drone_node2 &
-python3 /home/pi/scripts/shutdown.py &
+python3 /home/pi/scripts/shutdown.py3 &

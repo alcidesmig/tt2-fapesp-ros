@@ -116,7 +116,7 @@ int alt_point = -1;
 char data[3][256];
 double max_airspeed[3] = {-1, -1, -1};
 int change_z = 0;
-float pos_x, pos_y;
+float pos_x = 0, pos_y = 0;
 int lidar_ok = 0, lidar_sincronized = 0;
 float offset_lidar_barometer = 0;
 int try_sync_done = 0;

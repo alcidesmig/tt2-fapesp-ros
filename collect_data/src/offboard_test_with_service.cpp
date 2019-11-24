@@ -121,7 +121,7 @@ int alt_point = -1;
 char data[3][256];
 double max_airspeed[3] = {-1, -1, -1};
 int change_z = 0;
-float pos_x, pos_y;
+float pos_x = 0, pos_y = 0;
 
 static float CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C = 1.225;
 static float CONSTANTS_AIR_GAS_CONST = 287.1;
@@ -282,7 +282,7 @@ int main(int argc, char **argv)
 
 
     // Abre arquivo e lê o valor da velocidade da rotação e grava na constante de soma
-    FILE *file_rotate = fopen("/home/alcides/parameters.txt", "r");
+    FILE *file_rotate = fopen("/home/pi/parameters.txt", "r");
     float divisor = 1;
     int return_scanf = fscanf(file_rotate, "%f %f %f %f", &divisor, &alt_1_point, &alt_2_point, &alt_3_point);
     fclose(file_rotate);

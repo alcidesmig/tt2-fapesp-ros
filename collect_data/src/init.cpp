@@ -94,7 +94,7 @@ int main(int argc, char **argv)
     // Espera conexão com a PX
     while(!current_state.connected)
     {
-        //ROS_INFO("Status: NOT OK. Waiting PX4 Connection.");
+        ROS_INFO("Status: NOT OK. Waiting PX4 Connection.");
 	sleep(1);
     }
 

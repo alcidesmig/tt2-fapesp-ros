@@ -33,7 +33,7 @@
 #include <collect_data/HDC1050.h>
 #include <collect_data/MS4525.h>
 
-#define FILENAME "/tmp/data.txt"
+#define FILENAME "/mnt/pendrive/data.txt"
 
 mavros_msgs::State current_state;
 void state_cb(const mavros_msgs::State::ConstPtr &msg)
@@ -120,9 +120,12 @@ float pos_x = 0, pos_y = 0;
 int lidar_ok = 0, lidar_sincronized = 0;
 float offset_lidar_barometer = 0;
 int try_sync_done = 0;
+char data_file_name[128];
+
 static float CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C = 1.225;
 static float CONSTANTS_AIR_GAS_CONST = 287.1;
 static float CONSTANTS_ABSOLUTE_NULL_CELSIUS = -273.15;
+
 float get_air_density(float static_pressure, float temperature_celsius)
 {
     return static_pressure / (CONSTANTS_AIR_GAS_CONST * (temperature_celsius - CONSTANTS_ABSOLUTE_NULL_CELSIUS));
@@ -347,8 +350,10 @@ int main(int argc, char **argv)
     // Último request
     ros::Time last_request = ros::Time::now();
 
+    sprintf(data_file_name, "/mnt/pendrive/data_%d.txt", time_reference.time_ref.sec);
+    
     // Gravar o 0 do sensor de airspeed
-    fp = fopen(FILENAME, "a+");
+    fp = fopen(data_file_name, "a+");
     //while(fp == NULL && !ms4525.valid); // Possível erro no while // Espera chegar algum dado do sensor de ms4525 para gravar o 0 do sensor de airspeed.
     sleep(5); // Para dados consistentes do sensor
     fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f) - Dados válidos: %d\n\n", ms4525.indicated_airspeed, calc_true_airspeed_from_indicated(ms4525.indicated_airspeed, pressure_ambient.fluid_pressure, ms4525.temperature), ms4525.valid);
@@ -376,7 +381,7 @@ int main(int argc, char **argv)
                 ROS_INFO_STREAM("Waypoint reached:" << waypoint_num.wp_seq);
                 pose.pose.position.x = pos.pose.position.x;
                 pose.pose.position.y = pos.pose.position.y;
-                fp = fopen(FILENAME, "a+");
+                fp = fopen(data_file_name, "a+");
                 float latitude = gps.latitude;
                 float longitude = gps.longitude;
                 if(fp != NULL) fprintf(fp, "Waypoint: %d at Latitude: %f Longitude: %f\nFormato: hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.altura\n", last_waypoint, latitude, longitude);
@@ -472,7 +477,9 @@ int main(int argc, char **argv)
                         ROS_INFO("Finalizou coleta");
                         fp = NULL;
                         alt_point = -1;
-                        FILE *regina = fopen("/mnt/pendrive/regina.txt", "a");
+			char file_name[128];
+			sprintf(file_name, "/mnt/pendrive/regina_%d.txt", time_reference.time_ref.sec);
+                        FILE *regina = fopen(file_name, "a");
                         fprintf(regina, "Waypoint %d\n", last_waypoint);
                         fprintf(regina, "%s -", data[0]);
                         fprintf(regina, "%s -", data[1]);

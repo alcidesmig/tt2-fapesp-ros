@@ -208,8 +208,12 @@ include_directories(
 ## Add folders to be run by python nosetests
 # catkin_add_nosetests(test)
 
-add_executable(offboard_test src/offboard_test.cpp)
-target_link_libraries(offboard_test ${catkin_LIBRARIES})
+#add_executable(offboard_test src/offboard_test.cpp)
+#target_link_libraries(offboard_test ${catkin_LIBRARIES})
+
+add_executable(test_system src/test_system.cpp)
+find_library(WIRINGPI_LIB wiringPi)
+target_link_libraries(test_system ${catkin_LIBRARIES} ${WIRINGPI_LIB})
 
 add_executable(ms4525 src/ms4525.cpp)
 target_link_libraries(ms4525 ${catkin_LIBRARIES})
@@ -217,33 +221,33 @@ target_link_libraries(ms4525 ${catkin_LIBRARIES})
 add_executable(hdc1050 src/hdc1050.cpp)
 target_link_libraries(hdc1050 ${catkin_LIBRARIES})
 
-add_executable(get_pos src/get_pos.cpp)
-target_link_libraries(get_pos ${catkin_LIBRARIES})
+#add_executable(get_pos src/get_pos.cpp)
+#target_link_libraries(get_pos ${catkin_LIBRARIES})
 
-add_executable(rotine src/rotine.cpp)
-target_link_libraries(rotine ${catkin_LIBRARIES})
+#add_executable(rotine src/rotine.cpp)
+#target_link_libraries(rotine ${catkin_LIBRARIES})
 
-add_executable(offboard_test_from_pos src/offboard_test_from_pos.cpp)
-target_link_libraries(offboard_test_from_pos ${catkin_LIBRARIES})
+#add_executable(offboard_test_from_pos src/offboard_test_from_pos.cpp)
+#target_link_libraries(offboard_test_from_pos ${catkin_LIBRARIES})
 
-add_executable(drone_node2 src/offboard_test_with_service.cpp)
-target_link_libraries(drone_node2 ${catkin_LIBRARIES})
+#add_executable(drone_node2 src/offboard_test_with_service.cpp)
+#target_link_libraries(drone_node2 ${catkin_LIBRARIES})
 
 add_executable(free_collect_data src/free_collect_data.cpp)
 target_link_libraries(free_collect_data ${catkin_LIBRARIES})
 
-add_executable(temperature_airspeed src/temperature_airspeed.cpp)
-target_link_libraries(temperature_airspeed ${catkin_LIBRARIES})
+#add_executable(temperature_airspeed src/temperature_airspeed.cpp)
+#target_link_libraries(temperature_airspeed ${catkin_LIBRARIES})
 
-add_executable(temp_humidity src/temp_humidity.cpp)
-target_link_libraries(temp_humidity ${catkin_LIBRARIES})
+#add_executable(temp_humidity src/temp_humidity.cpp)
+#target_link_libraries(temp_humidity ${catkin_LIBRARIES})
 
-add_executable(uns_test src/uns_test.cpp)
-target_link_libraries(uns_test ${catkin_LIBRARIES})
+#add_executable(uns_test src/uns_test.cpp)
+#target_link_libraries(uns_test ${catkin_LIBRARIES})
 
-add_executable(init src/init.cpp) #wiringPi.h)
-find_library(WIRINGPI_LIB wiringPi)
-target_link_libraries(init ${catkin_LIBRARIES} ${WIRINGPI_LIB})
+#add_executable(init src/init.cpp) #wiringPi.h)
+#find_library(WIRINGPI_LIB wiringPi)
+#target_link_libraries(init ${catkin_LIBRARIES} ${WIRINGPI_LIB})
 
 add_executable(test_lidar src/test_lidar.cpp)
 target_link_libraries(test_lidar ${catkin_LIBRARIES})

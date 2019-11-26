@@ -116,11 +116,13 @@ int alt_point = -1;
 char data[3][256];
 double max_airspeed[3] = {-1, -1, -1};
 int change_z = 0;
-float pos_x = 0, pos_y = 0;
+float pos_x = 0, pos_y = 0, pos_z = 0;
 int lidar_ok = 0, lidar_sincronized = 0;
 float offset_lidar_barometer = 0;
 int try_sync_done = 0;
 char data_file_name[128];
+char file_name_regina[128];
+double altitude = 0;
 
 static float CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C = 1.225;
 static float CONSTANTS_AIR_GAS_CONST = 287.1;
@@ -168,7 +170,7 @@ void *thread_func_set_pos(void *args)
                                    ("mavros/setpoint_position/local", 1);
     // Pressão ambiente para o cálculo do true airspeed
     ros::Subscriber pressure_sub = nh.subscribe<sensor_msgs::FluidPressure>
-                                   ("imu/atm_pressure", 1, get_pressure_value);
+                                   ("mavros/imu/static_pressure", 1, get_pressure_value);
 
     ros::Subscriber time_reference_sub = nh.subscribe<sensor_msgs::TimeReference>
                                          ("mavros/time_reference", 1, get_time_reference);
@@ -205,15 +207,15 @@ void *thread_func_set_pos(void *args)
                     {
                         char *complete_timestamp = get_complete_timestamp();
                         fprintf(fp,
-                                "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
-                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, fmod((compass.data + 180), 360), gps.latitude, gps.longitude, gps.altitude, rel_alt.data, lidar.range, time_reference.time_ref.sec, complete_timestamp
+                                "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
+                                hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, fmod((compass.data + 180), 360), gps.latitude, gps.longitude, gps.altitude, rel_alt.data, lidar.range, altitude, time_reference.time_ref.sec, complete_timestamp
                                );
                         if(alt_point != -1 && true_airspeed/*indicated_airspeed*/ > max_airspeed[alt_point - 1])
                         {
                             strcpy(data[alt_point - 1], "");
                             sprintf(data[alt_point - 1],
-                                    "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
-                                    hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, fmod((compass.data + 180), 360), gps.latitude, gps.longitude, gps.altitude, rel_alt.data, lidar.range, time_reference.time_ref.sec, complete_timestamp
+                                    "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
+                                    hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, fmod((compass.data + 180), 360), gps.latitude, gps.longitude, gps.altitude, rel_alt.data, lidar.range, altitude, time_reference.time_ref.sec, complete_timestamp
                                    );
                             max_airspeed[alt_point - 1] = /*indicated_airspeed;*/true_airspeed;
                         }
@@ -328,7 +330,6 @@ int main(int argc, char **argv)
     pos_target.velocity.z = -0.5;
 
     // Atualiza os dados do pose
-
     pose.pose.position.x = pos.pose.position.x;
     pose.pose.position.y = pos.pose.position.y;
     pose.pose.position.z = pos.pose.position.z;
@@ -350,8 +351,14 @@ int main(int argc, char **argv)
     // Último request
     ros::Time last_request = ros::Time::now();
 
+
+    while(time_reference.time_ref.sec == NULL or time_reference.time_ref.sec == 0) sleep(1);
+
     sprintf(data_file_name, "/mnt/pendrive/data_%d.txt", time_reference.time_ref.sec);
-    
+    sprintf(file_name_regina, "/mnt/pendrive/regina_%d.txt", time_reference.time_ref.sec);
+                        
+
+
     // Gravar o 0 do sensor de airspeed
     fp = fopen(data_file_name, "a+");
     //while(fp == NULL && !ms4525.valid); // Possível erro no while // Espera chegar algum dado do sensor de ms4525 para gravar o 0 do sensor de airspeed.
@@ -367,7 +374,6 @@ int main(int argc, char **argv)
 
     while(ros::ok())
     {
-        double altitude;
         // int valid_lidar = lidar.range >= 0.1 && lidar.range <= 10;
 
         switch(status)
@@ -384,7 +390,8 @@ int main(int argc, char **argv)
                 fp = fopen(data_file_name, "a+");
                 float latitude = gps.latitude;
                 float longitude = gps.longitude;
-                if(fp != NULL) fprintf(fp, "Waypoint: %d at Latitude: %f Longitude: %f\nFormato: hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.altura\n", last_waypoint, latitude, longitude);
+                if(fp != NULL) fprintf(fp, "Waypoint: %d at Latitude: %f Longitude: %f\nhdc1050-temperature;indicated_airspeed;true_airspeed;hdc1050-humidity;fmod((compass.data + 180), 360);gps-latitude;gps-longitude;gps-altitude;rel_alt-data;lidar-range;altitude;time_reference-time_ref.sec;complete_timestamp\n",
+				last_waypoint, latitude, longitude);
             }
             break;
         case 0:
@@ -395,7 +402,7 @@ int main(int argc, char **argv)
             }
             if(current_state.mode == "OFFBOARD" && !try_sync_done)
             {
-                ROS_INFO("Offboard enabled");
+                ROS_INFO("Offboard enabled Lidar: %d", lidar_ok);
                 offboard_enabled = ros::Time::now().toSec(); // Horário em que o modo offboard foi habilitado
                 // if(valid_lidar) pose.pose.position.z = pos.pose.position.z - lidar.range + alt_1_point; // Muda o valor da posição enviada para alt_1_point metros (altura) para coleta de dados
                 // else pose.pose.position.z = pos.pose.position.z - rel_alt.data + alt_1_point;
@@ -409,7 +416,7 @@ int main(int argc, char **argv)
                     {
                         pos_x = pos.pose.position.x;
                         pos_y = pos.pose.position.y;
-                        pos_target.velocity.z = -0.5;
+                        pos_target.velocity.z = -0.5 *2;
                         change_z = 1;
                     }
                     if(lidar.range > 3 && lidar.range < 7) // Se entrou num range válido do lidar, faz o cálculo do offset e manda o drone para a primeira altura de coleta
@@ -418,15 +425,15 @@ int main(int argc, char **argv)
                         lidar_sincronized = 1;
                         if(rel_alt.data - offset_lidar_barometer > alt_1_point) // Manda o drone para cima ou para baixo, a depender da posição relativa em relação à altura de coleta
                         {
-                            pos_target.velocity.z = -0.5;
+                            pos_target.velocity.z = -0.5 * 2;
                         }
                         else
                         {
-                            pos_target.velocity.z = 0.5;
+                            pos_target.velocity.z = 0.5 * 2;
                         }
                         pos_x = pos.pose.position.x;
                         pos_y = pos.pose.position.y;
-                        change_z = 1;
+			change_z = 1;
                         try_sync_done = 1;
                     }
                 }
@@ -439,10 +446,12 @@ int main(int argc, char **argv)
 
             if(current_state.mode == "OFFBOARD" && try_sync_done)
             {
+		  
 
                 if(!lidar_ok) altitude = rel_alt.data; // Calcula a altitude com base nos dados do lidar
                 else altitude = rel_alt.data - offset_lidar_barometer;
 
+		ROS_INFO("Lidar ok: %d, altitude: %f", lidar_ok, altitude);
                 // Se chegou a alt_1_point metros de altura (tolerância = 0.3m), começa a coletar os dados
                 if(!collecting_2_point && !collecting_3_point && altitude - alt_1_point < 0.3 && altitude - alt_1_point > -0.3 && !collecting && current_state.mode == "OFFBOARD")
                 {
@@ -477,13 +486,11 @@ int main(int argc, char **argv)
                         ROS_INFO("Finalizou coleta");
                         fp = NULL;
                         alt_point = -1;
-			char file_name[128];
-			sprintf(file_name, "/mnt/pendrive/regina_%d.txt", time_reference.time_ref.sec);
-                        FILE *regina = fopen(file_name, "a");
+			FILE *regina = fopen(file_name_regina, "a");
                         fprintf(regina, "Waypoint %d\n", last_waypoint);
-                        fprintf(regina, "%s -", data[0]);
-                        fprintf(regina, "%s -", data[1]);
-                        fprintf(regina, "%s -", data[2]);
+                        fprintf(regina, "%s\n", data[0]);
+                        fprintf(regina, "%s\n", data[1]);
+                        fprintf(regina, "%s\n", data[2]);
                         fclose(regina);
                         max_airspeed[0] = -1;
                         max_airspeed[1] = -1;
@@ -501,15 +508,15 @@ int main(int argc, char **argv)
 
                         if(altitude > alt_3_point) // Manda o drone para cima ou para baixo, a depender da posição relativa em relação à altura de coleta
                         {
-                            pos_target.velocity.z = -0.5;
+                            pos_target.velocity.z = -0.5 * 2;
                         }
                         else
                         {
-                            pos_target.velocity.z = 0.5;
+                            pos_target.velocity.z = 0.5 * 2;
                         }
                         pos_x = pos.pose.position.x; // Sincronização dos valores x e y para não haver conflito na publicação
                         pos_y = pos.pose.position.y;
-                        change_z = 1; // Variável que ativa a publicação da velocidade do eixo z
+			change_z = 1; // Variável que ativa a publicação da velocidade do eixo z
 
                         ROS_INFO("Vai p 3 ponto");
                     }
@@ -520,11 +527,11 @@ int main(int argc, char **argv)
                         // else pose.pose.position.z = pos.pose.position.z - rel_alt.data + alt_2_point;
                         if(altitude > alt_2_point)
                         {
-                            pos_target.velocity.z = -0.5;
+                            pos_target.velocity.z = -0.5 * 2;
                         }
                         else
                         {
-                            pos_target.velocity.z = 0.5;
+                            pos_target.velocity.z = 0.5 * 2;
                         }
                         pos_x = pos.pose.position.x; // Sincronização dos valores x e y para não haver conflito na publicação
                         pos_y = pos.pose.position.y;
@@ -544,7 +551,7 @@ int main(int argc, char **argv)
                     {
                         yaw_compass_start_value = compass.data;
                         collecting = 1; // Inicia a coleta de dados no segundo ponto
-                    }
+		    }
                     change_z = 0; // Variável que ativa a publicação da velocidade do eixo z
                 }
 
@@ -594,11 +601,11 @@ int main(int argc, char **argv)
         {
             pos_target.position.x = pos_x; // Sincroniza os valores de x e y
             pos_target.position.y = pos_y;
-            set_vel_pub.publish(pos_target); // Publica a mensagem
+	    set_vel_pub.publish(pos_target); // Publica a mensagem
             pose.pose.position.x = pos.pose.position.x; // Sincroniza os valores
             pose.pose.position.y = pos.pose.position.y;
             pose.pose.position.z = pos.pose.position.z;
-        }
+	}
 
         if(!lidar_ok && lidar.range > 2 && lidar.range < 8) // Faz a verificação constante para ver se em algum momento o lidar coletou valores válidos
         {

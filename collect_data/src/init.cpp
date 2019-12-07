@@ -73,15 +73,15 @@ int main(int argc, char **argv)
     wiringPiSetup();
     pinMode(PIN, OUTPUT);
 
-    pullUpDnControl(4, PUD_DOWN); 
+    pullUpDnControl(4, PUD_DOWN);
 
 
-//    ms4525.valid = 0;
-//    hdc1050.valid = 0;
+    //    ms4525.valid = 0;
+    //    hdc1050.valid = 0;
 
-    //digitalWrite(PIN, LOW);		    E
-    digitalWrite(PIN, 0); // Invertido por conta da NOT
-    
+    //digitalWrite(PIN, LOW);           E
+    digitalWrite(PIN, 1); // Invertido por conta da NOT
+
     // Status do drone
     ros::Subscriber state_sub = nh.subscribe<mavros_msgs::State>
                                 ("mavros/state", 1, state_cb);
@@ -95,7 +95,7 @@ int main(int argc, char **argv)
     while(!current_state.connected)
     {
         ROS_INFO("Status: NOT OK. Waiting PX4 Connection.");
-	sleep(1);
+        sleep(1);
     }
 
     // Abre arquivo dos parâmetros
@@ -105,20 +105,23 @@ int main(int argc, char **argv)
     float alt_1, alt_2, alt_3, vel;
     int return_scanf = fscanf(fp, "%f %f %f %f", &vel, &alt_1, &alt_2, &alt_3);
     fclose(fp);
+
+    fp = fopen("/mnt/pendrive/guarantee", "w");
     // Variável que indica que os parâmetros estão OK.
-    bool parameters_ok = return_scanf == 4 && (alt_1 >= 1 && alt_1 <= 100 && alt_2 >= 1 && alt_2 <= 100 && alt_3 >= 1 && alt_3 <= 100 && vel > 0 && vel <= 50);
+    bool parameters_ok = fp != NULL && return_scanf == 4 && (alt_1 >= 1 && alt_1 <= 100 && alt_2 >= 1 && alt_2 <= 100 && alt_3 >= 1 && alt_3 <= 100 && vel > 0 && vel <= 50);
+    fclose(fp);
     sleep(10);
 
     // Verifica se os dados dos sensores são válidos
     if(parameters_ok && (hdc1050.valid == 1) && (ms4525.valid == 1) && current_state.connected)
     {
         //digitalWrite(PIN, HIGH);
-	digitalWrite(PIN, 1); // Acende o LED caso tudo ok
+        digitalWrite(PIN, 0); // Acende o LED caso tudo ok
     }
     else
     {
-      //digitalWrite(PIN, LOW);
-	digitalWrite(PIN, 0); // Garantia do LED apagado
+        //digitalWrite(PIN, LOW);
+        digitalWrite(PIN, 1); // Garantia do LED apagado
     }
 
     fclose(fp);

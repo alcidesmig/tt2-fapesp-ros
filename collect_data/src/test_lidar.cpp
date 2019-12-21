@@ -245,7 +245,7 @@ int main(int argc, char **argv)
 
     ros::NodeHandle nh;
 
-    ros::Rate rate(100.0);
+    ros::Rate rate(25.0);
 
     // Publicação do Pose
     ros::Publisher local_pos_pub = nh.advertise<geometry_msgs::PoseStamped>

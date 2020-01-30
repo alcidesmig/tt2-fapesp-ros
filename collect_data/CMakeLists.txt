@@ -215,11 +215,11 @@ add_executable(test_system src/test_system.cpp)
 find_library(WIRINGPI_LIB wiringPi)
 target_link_libraries(test_system ${catkin_LIBRARIES} ${WIRINGPI_LIB})
 
-#.add_executable(ms4525 src/ms4525.cpp)
-#.target_link_libraries(ms4525 ${catkin_LIBRARIES})
+add_executable(ms4525 src/ms4525.cpp)
+target_link_libraries(ms4525 ${catkin_LIBRARIES})
 
-#.add_executable(hdc1050 src/hdc1050.cpp)
-#.target_link_libraries(hdc1050 ${catkin_LIBRARIES})
+add_executable(hdc1050 src/hdc1050.cpp)
+target_link_libraries(hdc1050 ${catkin_LIBRARIES})
 
 #add_executable(get_pos src/get_pos.cpp)
 #target_link_libraries(get_pos ${catkin_LIBRARIES})
@@ -249,5 +249,5 @@ target_link_libraries(test_system ${catkin_LIBRARIES} ${WIRINGPI_LIB})
 #find_library(WIRINGPI_LIB wiringPi)
 #target_link_libraries(init ${catkin_LIBRARIES} ${WIRINGPI_LIB})
 
-add_executable(test_lidar src/test_lidar.cpp)
-target_link_libraries(test_lidar ${catkin_LIBRARIES})
+add_executable(drone src/final_version.cpp)
+target_link_libraries(drone ${catkin_LIBRARIES})

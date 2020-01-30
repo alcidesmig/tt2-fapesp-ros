@@ -89,8 +89,13 @@ public:
         {
             unsigned char bytes[4] = {0, 0, 0, 0};
             ioctl(fd, I2C_SLAVE, 0x28);
-            read(fd, bytes, 4);
+            size_t returned = read(fd, bytes, 4);
             char status = (bytes[0] & 0xC0) >> 6;
+
+	    if(returned == -1 || returned == 0) {
+		    valid = 0;
+		    return;
+	    }
 
             if(status == 0)
             {

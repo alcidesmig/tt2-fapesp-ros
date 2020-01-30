@@ -79,7 +79,8 @@ public:
 	    temperature = i2c_value * (165.0 / 65536.0) - 40;
 	    i2c_value  = i2c_read(0x40,1,20000);
             humidity = i2c_value  * (100.0/65536.0);
-            valid = 1;
+            if(temperature == 124.997) valid = 0;
+	    else valid = 1;
         }
         catch (...)
         {

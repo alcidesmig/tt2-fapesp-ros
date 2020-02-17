@@ -1,0 +1,10 @@
+[Unit]
+Description=mavros
+
+[Service]
+Type=forking
+ExecStart=/home/pi/scripts/startup_launch.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

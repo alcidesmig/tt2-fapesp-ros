@@ -2,6 +2,9 @@
 
 #include <ros/ros.h>
 
+#include <string>
+#include <stdio.h>
+
 #include <geometry_msgs/PoseStamped.h>
 
 #include <mavros_msgs/CommandBool.h>
@@ -32,6 +35,15 @@
 
 #include <collect_data/HDC1050.h>
 #include <collect_data/MS4525.h>
+
+// Includes para o servidor HTTP
+#include <unistd.h>
+#include <sys/types.h> 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <err.h>
 
 #define FILENAME "/mnt/pendrive/data.txt"
 
@@ -160,6 +172,130 @@ char *get_complete_timestamp()
     char *string = (char *) malloc(sizeof(char) * 50);
     sprintf(string, "%jd.%03ld", (intmax_t)s, ms);
     return string;
+}
+
+char * response;
+
+// Créditos: https://rosettacode.org/wiki/Hello_world/Web_server#C.2B.2B
+void *thread_func_server_http(void *args) {
+  int one = 1, client_fd;
+  struct sockaddr_in svr_addr, cli_addr;
+  socklen_t sin_len = sizeof(cli_addr);
+  ROS_INFO("Starting server");
+  int sock = socket(AF_INET, SOCK_STREAM, 0);
+  if (sock < 0) {
+    err(1, "Erro ao abrir o socket");
+    ROS_INFO("Socket");
+  }
+  setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(int));
+ 
+  int port = 8080;
+  svr_addr.sin_family = AF_INET;
+  svr_addr.sin_addr.s_addr = INADDR_ANY;
+  svr_addr.sin_port = htons(port);
+ 
+  if (bind(sock, (struct sockaddr *) &svr_addr, sizeof(svr_addr)) == -1) {
+    close(sock);
+    err(1, "Erro, falha no bind");
+    ROS_INFO("Bind");
+  }
+ 
+  listen(sock, 5);
+  while (1) {
+    client_fd = accept(sock, (struct sockaddr *) &cli_addr, &sin_len);
+ 	
+    if(client_fd == 1) ROS_INFO("Accepted");
+
+    if (client_fd == -1) {
+      perror("Can't accept");
+      ROS_INFO("Cant accept");
+      continue;
+    }
+ 
+    write(client_fd, response, sizeof(response) - 1); /*-1:'\0'*/
+    close(client_fd);
+  }
+	
+}
+
+std::string parse_for_json(char * data_1, char * data_2, char * data_3) {
+	FILE * fp_id = fopen("/home/pi/id_coleta", "r");
+	int id_coleta;
+        fscanf(fp_id, "%d", &id_coleta);
+	fclose(fp_id);
+	fp_id = fopen("/home/pi/id_coleta", "w+");
+	fprintf(fp_id, "%d", id_coleta + 1);
+	fclose(fp_id);
+
+	//  hdc1050.temperature, indicated_airspeed, indicated_airspeed - zero_i_airspeed, true_airspeed, true_airspeed - zero_t_airspeed, hdc1050.humidity, fmod((compass.data + 180), 360), gps.latitude, gps.longitude, gps.altitude, rel_alt.data, lidar.range, altitude, time_reference.time_ref.sec, complete_timestamp
+
+	std::string temp_1 = strtok(data_1, ";");
+	strtok(NULL, ";");
+	std::string indicated_airspeed_1 = strtok(NULL, ";");
+	strtok(NULL, ";");
+	std::string true_airspeed_1 = strtok(NULL, ";");
+	std::string humidity_1 = strtok(NULL, ";");
+	std::string compass_1 = strtok(NULL, ";");
+	std::string lat_1 = strtok(NULL, ";");
+	std::string long_1 = strtok(NULL, ";");
+	std::string alt_1 = strtok(NULL, ";");
+
+	std::string temp_2 = strtok(data_2, ";");
+        strtok(NULL, ";");
+        std::string indicated_airspeed_2 = strtok(NULL, ";");
+        strtok(NULL, ";");
+        std::string true_airspeed_2 = strtok(NULL, ";");
+        std::string humidity_2 = strtok(NULL, ";");
+        std::string compass_2 = strtok(NULL, ";");
+        std::string lat_2 = strtok(NULL, ";");
+        std::string long_2 = strtok(NULL, ";");
+        std::string alt_2 = strtok(NULL, ";");
+
+	std::string temp_3 = strtok(data_3, ";");
+        strtok(NULL, ";");
+        std::string indicated_airspeed_3 = strtok(NULL, ";");
+        strtok(NULL, ";");
+        std::string true_airspeed_3 = strtok(NULL, ";");
+        std::string humidity_3 = strtok(NULL, ";");
+        std::string compass_3 = strtok(NULL, ";");
+        std::string lat_3 = strtok(NULL, ";");
+        std::string long_3 = strtok(NULL, ";");
+        std::string alt_3 = strtok(NULL, ";");
+
+	char id_coleta_[20];
+	sprintf(id_coleta_, "%d", id_coleta);
+	std::string id_coleta_s = id_coleta_;
+
+	std::string ret = ""
+	"{" 
+		"\t\"id\": \"" + id_coleta_s + "\","
+		"\t\"temp_1\": \"" + temp_1 + "\""
+		"\t\"indicated_airspeed_1\": \"" + indicated_airspeed_1 + "\","
+		"\t\"true_airspeed_1\": \"" + true_airspeed_1 + "\","
+		"\t\"humidity_1\": \"" + humidity_1 + "\","
+		"\t\"compass_1\": \"" + compass_1 + "\","
+		"\t\"lat_1\": \"" + lat_1 + "\","
+		"\t\"long_1\": \"" + long_1 + "\","
+		"\t\"alt_1\": \"" + alt_1 + "\","
+		"\t\"temp_2\": \"" + temp_2 + "\","
+                "\t\"indicated_airspeed_2\": \"" + indicated_airspeed_2 + "\","
+                "\t\"true_airspeed_2\": \"" + true_airspeed_2 + "\","
+                "\t\"humidity_2\": \"" + humidity_2 + "\","
+                "\t\"compass_2\": \"" + compass_2 + "\","
+                "\t\"lat_2\": \"" + lat_2 + "\","
+                "\t\"long_2\": \"" + long_2 + "\","
+                "\t\"alt_2\": \"" + alt_2 + "\","
+		"\t\"temp_3\": \"" + temp_3 + "\","
+                "\t\"indicated_airspeed_3\": \"" + indicated_airspeed_3 + "\","
+                "\t\"true_airspeed_3\": \"" + true_airspeed_3 + "\","
+                "\t\"humidity_3\": \"" + humidity_3 + "\","
+                "\t\"compass_3\": \"" + compass_3 + "\","
+                "\t\"lat_3\": \"" + lat_3 + "\","
+                "\t\"long_3\": \"" + long_3 + "\","
+                "\t\"alt_3\": \"" + alt_3 + "\""
+	"}";
+	return ret;
+
 }
 
 void *thread_func_set_pos(void *args)
@@ -300,14 +436,14 @@ int main(int argc, char **argv)
         alt_3_point = 10;
     }
 
-
+/*
     // Espera conexão
     while(ros::ok() && !current_state.connected)
     {
         ros::spinOnce();
         rate.sleep();
     }
-
+*/
     mavros_msgs::PositionTarget pos_target;
     pos_target.coordinate_frame = mavros_msgs::PositionTarget::FRAME_BODY_NED;
 
@@ -333,8 +469,9 @@ int main(int argc, char **argv)
 
     // Inicia a thread para envio da posição para o ROS
 
-    pthread_t thread_pose;
-    pthread_create(&(thread_pose), NULL, thread_func_set_pos, NULL);
+    pthread_t thread_pose[2];
+    pthread_create(&(thread_pose[0]), NULL, thread_func_set_pos, NULL);
+    pthread_create(&(thread_pose[1]), NULL, thread_func_server_http, NULL);	
 
     // Drone mode
     mavros_msgs::SetMode offb_set_mode;
@@ -358,7 +495,7 @@ int main(int argc, char **argv)
 
     // Gravar o 0 do sensor de airspeed
     fp = fopen(data_file_name, "a+");
-    while(fp == NULL && !ms4525.valid); // Possível erro no while // Espera chegar algum dado do sensor de ms4525 para gravar o 0 do sensor de airspeed.
+ //   while(fp == NULL && !ms4525.valid); // Possível erro no while // Espera chegar algum dado do sensor de ms4525 para gravar o 0 do sensor de airspeed.
     sleep(5); // Para dados consistentes do sensor
     zero_i_airspeed = ms4525.indicated_airspeed;
     zero_t_airspeed = calc_true_airspeed_from_indicated(ms4525.indicated_airspeed, pressure_ambient.fluid_pressure, ms4525.temperature);
@@ -370,6 +507,8 @@ int main(int argc, char **argv)
     fprintf(fp, "temperatura;raw indicated airspeed;indicated airspeed (-offset);raw true airspeedtrue airspeed (-offset);umidade;bússola;latitude;longitude;altitude gps;rel_alt;lidar;altitude calculada;timestamp;timestamp_nsecs\n");
     fclose(fp);
 
+    response = (char *) malloc(sizeof(strlen("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n")) + 1);
+    strcpy(response, "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n");
 
     // Último waypoint -> comparar com o atual para mudança de estado
     last_waypoint = waypoint_num.wp_seq;
@@ -500,7 +639,15 @@ int main(int argc, char **argv)
                         fprintf(regina, "%s\n", data[1]);
                         fprintf(regina, "%s\n", data[2]);
                         fclose(regina);
-                        max_airspeed[0] = -1;
+                        
+			response = (char*) realloc(response, 2048);
+			
+			char aux_[2048] = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n";
+			strcat(aux_, parse_for_json(data[0], data[1], data[2]).c_str());
+			
+			strcpy(response, aux_);
+
+			max_airspeed[0] = -1;
                         max_airspeed[1] = -1;
                         max_airspeed[2] = -1;
                     }

@@ -7,5 +7,5 @@ sleep 10
 rosrun collect_data ms4525 &
 rosrun collect_data hdc1050 &
 rosrun collect_data test_system &
-rosrun collect_data test_lidar &
+rosrun collect_data drone &
 python3 /home/pi/scripts/shutdown.py3 &

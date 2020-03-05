@@ -1,0 +1,3 @@
+[submodule "aplicativo"]
+	path = aplicativo
+	url = https://github.com/alcidesmig/tt2-fapesp-app

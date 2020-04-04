@@ -1,21 +1,13 @@
+// Rotina executada no início do sistema para testar todos os componentes do mesmo
+// e sinalizar o resultado através do LED na Raspberry
+
 // (ok) gravar indic e true airspeed, humidade, lat, long, timestamp
-// fazer checagem dos sensores, do arquivo dentro do nó master, acender led = ok, piscar led = !ok
+// (ok) fazer checagem dos sensores, do arquivo dentro do nó master, acender led = ok, piscar led = !ok
 // (ok) mudar para 10s a rotação
 // (ok) quaternion para determinar parada, quando bater 2pi + offset
 // (ok) arrumar arquivo = segfault
 // (ok) tratar excessao do arquivo para n crashar ros
 // (ok) gravar o 0 do sensor de airspeed (true, indicated) para fazer compensação (tapar tubo quando ligar o sistema)
-
-
-// to do: serviço para calcular o true airspeed
-
-// quarta manhã 8h usp2
-
-/**
- * @file offb_node.cpp
- * @brief Offboard control example node, written with MAVROS version 0.19.x, PX4 Pro Flight
- * Stack and tested in Gazebo SITL
- */
 
 #include <ros/ros.h>
 
@@ -92,7 +84,7 @@ int main(int argc, char **argv)
     ros::Subscriber ms4525_sub = nh.subscribe<collect_data::MS4525>
                                  ("ms4525", 1, get_ms4525_data);
     // Espera conexão com a PX
-    while(!current_state.connected)
+    while (!current_state.connected)
     {
         ROS_INFO("Status: NOT OK. Waiting PX4 Connection.");
         sleep(1);
@@ -113,7 +105,7 @@ int main(int argc, char **argv)
     sleep(10);
 
     // Verifica se os dados dos sensores são válidos
-    if(parameters_ok && (hdc1050.valid == 1) && (ms4525.valid == 1) && current_state.connected)
+    if (parameters_ok && (hdc1050.valid == 1) && (ms4525.valid == 1) && current_state.connected)
     {
         //digitalWrite(PIN, HIGH);
         digitalWrite(PIN, 0); // Acende o LED caso tudo ok

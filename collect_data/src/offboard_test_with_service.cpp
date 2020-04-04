@@ -1,22 +1,5 @@
-// (ok) gravar indic e true airspeed, humidade, lat, long, timestamp
-// fazer checagem dos sensores, do arquivo dentro do nó master, acender led = ok, piscar led = !ok
-// (ok) mudar para 10s a rotação
-// (ok) quaternion para determinar parada, quando bater 2pi + offset
-// (ok) arrumar arquivo = segfault
-// (ok) tratar excessao do arquivo para n crashar ros
-// (ok) gravar o 0 do sensor de airspeed (true, indicated) para fazer compensação (tapar tubo quando ligar o sistema)
 
-
-// to do: serviço para calcular o true airspeed
-
-// quarta manhã 8h usp2
-
-/**
- * @file offb_node.cpp
- * @brief Offboard control example node, written with MAVROS version 0.19.x, PX4 Pro Flight
- * Stack and tested in Gazebo SITL
- */
-
+// Arquivo obsoleto: substituido por final_version.cpp
 #include <ros/ros.h>
 
 #include <geometry_msgs/PoseStamped.h>
@@ -119,7 +102,7 @@ float alt_1_point = 2, alt_2_point = 5, alt_3_point = 10;
 FILE *fp = NULL;
 int alt_point = -1;
 char data[3][256];
-double max_airspeed[3] = {-1, -1, -1};
+double max_airspeed[3] = { -1, -1, -1};
 int change_z = 0;
 float pos_x = 0, pos_y = 0;
 
@@ -176,9 +159,9 @@ void *thread_func_set_pos(void *args)
     ros::Rate rate_thread(72.0);
 
 
-    while(ros::ok())
+    while (ros::ok())
     {
-        if(collecting)
+        if (collecting)
         {
             try
             {
@@ -191,24 +174,24 @@ void *thread_func_set_pos(void *args)
                 float temperature_airspeed = ms4525.temperature;
                 float true_airspeed = calc_true_airspeed_from_indicated(indicated_airspeed, pressure_ambient.fluid_pressure, temperature_airspeed);
 
-                if(fp != NULL)
+                if (fp != NULL)
                 {
-                    if(!ms4525.valid)
+                    if (!ms4525.valid)
                     {
                         fprintf(fp, "Dados do MS4525 inválidos\n");
                     }
-                    if(!hdc1050.valid)
+                    if (!hdc1050.valid)
                     {
                         fprintf(fp, "Dados do HDC1050 inválidos\n");
                     }
-                    if(hdc1050.valid && ms4525.valid)
+                    if (hdc1050.valid && ms4525.valid)
                     {
                         char *complete_timestamp = get_complete_timestamp();
                         fprintf(fp,
                                 "%f;%f;%f;%f;%f;%f;%f;%f;%f;%d;%s\n",
                                 hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.pose.position.z, time_reference.time_ref.sec, complete_timestamp
                                );
-                        if(alt_point != -1 && true_airspeed/*indicated_airspeed*/ > max_airspeed[alt_point - 1])
+                        if (alt_point != -1 && true_airspeed/*indicated_airspeed*/ > max_airspeed[alt_point - 1])
                         {
                             strcpy(data[alt_point - 1], "");
                             sprintf(data[alt_point - 1],
@@ -221,12 +204,12 @@ void *thread_func_set_pos(void *args)
                     }
                 }
             }
-            catch(...)
+            catch (...)
             {
                 ROS_INFO("ERROR - COLLECTING");
             }
         }
-        if(!change_z) local_pos_pub.publish(pose);
+        if (!change_z) local_pos_pub.publish(pose);
         ros::spinOnce();
         rate_thread.sleep();
     }
@@ -287,7 +270,7 @@ int main(int argc, char **argv)
     int return_scanf = fscanf(file_rotate, "%f %f %f %f", &divisor, &alt_1_point, &alt_2_point, &alt_3_point);
     fclose(file_rotate);
     ROS_INFO_STREAM("Return scanf e parameters" << return_scanf << alt_1_point << alt_2_point << alt_3_point);
-    if(return_scanf != 4)
+    if (return_scanf != 4)
     {
         divisor = 1;
         alt_1_point = 10;
@@ -298,7 +281,7 @@ int main(int argc, char **argv)
     const_sum_quat /= divisor;
 
     // Espera conexão
-    while(ros::ok() && !current_state.connected)
+    while (ros::ok() && !current_state.connected)
     {
         ros::spinOnce();
         rate.sleep();
@@ -348,7 +331,7 @@ int main(int argc, char **argv)
 
     // Gravar o 0 do sensor de airspeed
     fp = fopen(FILENAME, "a+");
-    while(fp == NULL && !ms4525.valid); // Possível erro no while // Espera chegar algum dado do sensor de ms4525 para gravar o 0 do sensor de airspeed.
+    while (fp == NULL && !ms4525.valid); // Possível erro no while // Espera chegar algum dado do sensor de ms4525 para gravar o 0 do sensor de airspeed.
     sleep(5); // Para dados consistentes do sensor
     fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f) - Dados válidos: %d\n\n", ms4525.indicated_airspeed, calc_true_airspeed_from_indicated(ms4525.indicated_airspeed, pressure_ambient.fluid_pressure, ms4525.temperature), ms4525.valid);
     fclose(fp);
@@ -358,13 +341,13 @@ int main(int argc, char **argv)
     last_waypoint = waypoint_num.wp_seq;
     ROS_INFO_STREAM("First value for waypoint_num:" << waypoint_num.wp_seq);
 
-    while(ros::ok())
+    while (ros::ok())
     {
-        switch(status)
+        switch (status)
         {
         case -1:
             // Verifica se chegou em um waypoint comparando o último que foi registrado com o atual. Obs: o primeiro é descartado
-            if(last_waypoint != waypoint_num.wp_seq && waypoint_num.wp_seq != 0)
+            if (last_waypoint != waypoint_num.wp_seq && waypoint_num.wp_seq != 0)
             {
                 last_waypoint = waypoint_num.wp_seq;
                 status = 0;
@@ -374,21 +357,21 @@ int main(int argc, char **argv)
                 fp = fopen(FILENAME, "a+");
                 float latitude = gps.latitude;
                 float longitude = gps.longitude;
-                if(fp != NULL) fprintf(fp, "Waypoint: %d at Latitude: %f Longitude: %f\nFormato: hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.altura\n", last_waypoint, latitude, longitude);
+                if (fp != NULL) fprintf(fp, "Waypoint: %d at Latitude: %f Longitude: %f\nFormato: hdc1050.temperature, indicated_airspeed, true_airspeed, hdc1050.humidity, compass.data, gps.latitude, gps.longitude, gps.altitude, pos.altura\n", last_waypoint, latitude, longitude);
             }
             break;
         case 0:
             offb_set_mode.request.custom_mode = "OFFBOARD";
-            if(current_state.mode != "OFFBOARD" && set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent) // Se não estiver no OFFBOARD -> tente colocar
+            if (current_state.mode != "OFFBOARD" && set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent) // Se não estiver no OFFBOARD -> tente colocar
             {
                 ROS_INFO("Trying to switch to Offboard mode");
             }
-            if(current_state.mode == "OFFBOARD" && offboard_enabled == -1)
+            if (current_state.mode == "OFFBOARD" && offboard_enabled == -1)
             {
                 ROS_INFO("Offboard enabled");
                 offboard_enabled = ros::Time::now().toSec(); // Horário em que o modo offboard foi habilitado
                 // pose.pose.position.z = alt_1_point; // Muda o valor da posição enviada para alt_1_point metros (altura) para coleta de dados
-                if(pos.pose.position.z > alt_1_point)
+                if (pos.pose.position.z > alt_1_point)
                 {
                     pos_target.velocity.z = -0.5;
                 }
@@ -403,11 +386,11 @@ int main(int argc, char **argv)
                 collecting = 0; // Garantir o valor correto para variável
             }
 
-            if(current_state.mode == "OFFBOARD")
+            if (current_state.mode == "OFFBOARD")
             {
 
                 // Se chegou a alt_1_point metros de altura (tolerância = 0.3m), começa a coletar os dados
-                if(!collecting_2_point && !collecting_3_point && pos.pose.position.z - alt_1_point < 0.3 && pos.pose.position.z - alt_1_point > -0.3 && !collecting && current_state.mode == "OFFBOARD")
+                if (!collecting_2_point && !collecting_3_point && pos.pose.position.z - alt_1_point < 0.3 && pos.pose.position.z - alt_1_point > -0.3 && !collecting && current_state.mode == "OFFBOARD")
                 {
                     ROS_INFO("Chegou 2m");
                     pose.pose.position.z = pos.pose.position.z;
@@ -427,14 +410,14 @@ int main(int argc, char **argv)
                 compass_diff = compass.data;
 
                 // Compara a posição (bússola) atual com a posição de início caso o drone já tenha dado meia volta
-                if(collecting && ((can_compare_for_loop && diff(yaw_compass_start_value, compass.data) < 3) || value_quat2 > 6.28318530718) )
+                if (collecting && ((can_compare_for_loop && diff(yaw_compass_start_value, compass.data) < 3) || value_quat2 > 6.28318530718) )
                 {
                     ROS_INFO_STREAM("Can compare for loop" << can_compare_for_loop);
                     ROS_INFO_STREAM("Yaw Diff" << diff(yaw_compass_start_value, compass.data));
                     ROS_INFO_STREAM("Value quat" << value_quat2);
 
                     collecting = 0; // Para de coletar
-                    if(collecting_3_point) // Se coletou dados no 3 ponto de coleta
+                    if (collecting_3_point) // Se coletou dados no 3 ponto de coleta
                     {
                         status = 1; // Finaliza a coleta de dados
                         collecting_3_point = 0;
@@ -442,7 +425,7 @@ int main(int argc, char **argv)
                         ROS_INFO("Finalizou coleta");
                         fp = NULL;
                         alt_point = -1;
-			FILE *regina = fopen("/mnt/pendrive/regina.txt", "a");
+                        FILE *regina = fopen("/mnt/pendrive/regina.txt", "a");
                         fprintf(regina, "Waypoint %d\n", last_waypoint);
                         fprintf(regina, "%s -", data[0]);
                         fprintf(regina, "%s -", data[1]);
@@ -452,7 +435,7 @@ int main(int argc, char **argv)
                         max_airspeed[1] = -1;
                         max_airspeed[2] = -1;
                     }
-                    else if(collecting_2_point) // Se coletou dados no 2 ponto de coleta
+                    else if (collecting_2_point) // Se coletou dados no 2 ponto de coleta
                     {
                         collecting_2_point = 0; // Flag para saber em que ponto está na coleta de dados
                         can_compare_for_loop = 0;
@@ -460,7 +443,7 @@ int main(int argc, char **argv)
                         alt_point = 3;
                         collecting_3_point = 1;
                         // pose.pose.position.z = alt_3_point; // Enviar o drone para a altura do 3 ponto de coleta
-                        if(pos.pose.position.z > alt_3_point)
+                        if (pos.pose.position.z > alt_3_point)
                         {
                             pos_target.velocity.z = -0.5;
                         }
@@ -473,10 +456,10 @@ int main(int argc, char **argv)
                         change_z = 1;
                         ROS_INFO("Vai p 3 ponto");
                     }
-                    else if(!collecting_2_point && !collecting_3_point && status != 1)
+                    else if (!collecting_2_point && !collecting_3_point && status != 1)
                     {
                         // pose.pose.position.z = alt_2_point; // Enviar o drone para a altura do segundo ponto de coleta
-                        if(pos.pose.position.z > alt_2_point)
+                        if (pos.pose.position.z > alt_2_point)
                         {
                             pos_target.velocity.z = -0.5;
                         }
@@ -496,9 +479,9 @@ int main(int argc, char **argv)
                 }
 
                 // Se chegou a 5m de altura (tolerância = 0.3m), começa a coletar os dados
-                if(collecting_2_point && (pos.pose.position.z - alt_2_point < 0.3 && pos.pose.position.z - alt_2_point > -0.3))
+                if (collecting_2_point && (pos.pose.position.z - alt_2_point < 0.3 && pos.pose.position.z - alt_2_point > -0.3))
                 {
-                    if(!collecting)
+                    if (!collecting)
                     {
                         yaw_compass_start_value = compass.data;
                         collecting = 1; // Inicia a coleta de dados no segundo ponto
@@ -507,9 +490,9 @@ int main(int argc, char **argv)
                 }
 
                 // Se chegou a 5m de altura (tolerância = 0.3m), começa a coletar os dados
-                if(collecting_3_point && (pos.pose.position.z - alt_3_point < 0.3 && pos.pose.position.z - alt_3_point > -0.3))
+                if (collecting_3_point && (pos.pose.position.z - alt_3_point < 0.3 && pos.pose.position.z - alt_3_point > -0.3))
                 {
-                    if(!collecting)
+                    if (!collecting)
                     {
                         yaw_compass_start_value = compass.data;
                         collecting = 1; // Inicia a coleta de dados no terceiro ponto
@@ -518,7 +501,7 @@ int main(int argc, char **argv)
                 }
 
                 // Verifica se o drone já fez meia volta, para saber se pode começar a comparar o valor atual com o valor de início da rotação
-                if(collecting && diff(yaw_compass_start_value, fmod(compass.data + 180.0, 360.0)) < 10.0)
+                if (collecting && diff(yaw_compass_start_value, fmod(compass.data + 180.0, 360.0)) < 10.0)
                 {
                     can_compare_for_loop = 1;
                     ROS_INFO("Now can compare for loop");
@@ -532,7 +515,7 @@ int main(int argc, char **argv)
             if (current_state.mode != "AUTO.MISSION")
             {
                 offb_set_mode.request.custom_mode = "AUTO.MISSION";
-                if( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
+                if ( set_mode_client.call(offb_set_mode) && offb_set_mode.response.mode_sent)
                 {
                     ROS_INFO("Collect data: ok");
                     ROS_INFO("AUTO.PILOT = MISSION enabled");
@@ -546,7 +529,7 @@ int main(int argc, char **argv)
 
         }
 
-        if(change_z)
+        if (change_z)
         {
             pos_target.position.x = pos_x;
             pos_target.position.y = pos_y;

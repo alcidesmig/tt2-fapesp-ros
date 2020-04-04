@@ -1,4 +1,4 @@
-// edit of https://roboticsbackend.com/roscpp-timer-with-ros-publish-data-at-a-fixed-rate/
+// Arquivo obsoleto: sensor MS4525
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
 #include <vector>
@@ -28,9 +28,9 @@ public:
     {
         // Initialize airspeed, i2c and ROS publisher
         airspeed = 0.0;
-         temperature_airspeedPublisher =
+        temperature_airspeedPublisher =
             nh->advertise<std_msgs::Float64>("/temperature_airspeed", 10);
-    	fd = open("/dev/i2c-1", O_RDWR);
+        fd = open("/dev/i2c-1", O_RDWR);
 
     }
 
@@ -49,15 +49,15 @@ public:
 
     }
     float get_air_density(float static_pressure, float temperature_celsius)
-        {
-            return static_pressure / (CONSTANTS_AIR_GAS_CONST * (temperature_celsius - CONSTANTS_ABSOLUTE_NULL_CELSIUS));
-        }
+    {
+        return static_pressure / (CONSTANTS_AIR_GAS_CONST * (temperature_celsius - CONSTANTS_ABSOLUTE_NULL_CELSIUS));
+    }
     float calc_true_airspeed_from_indicated(float speed_indicated, float pressure_ambient, float temperature_celsius)
     {
-        
+
         return speed_indicated * sqrtf(CONSTANTS_AIR_DENSITY_SEA_LEVEL_15C / get_air_density(pressure_ambient,
                                        temperature_celsius));
-    } 
+    }
     double readAirSpeedSensorData()
     {
         try
@@ -86,7 +86,7 @@ public:
     }
     void publishAirspeed()
     {
-        if(readAirSpeedSensorData())
+        if (readAirSpeedSensorData())
         {
             std_msgs::Float64 msg;
             msg.data = temp;

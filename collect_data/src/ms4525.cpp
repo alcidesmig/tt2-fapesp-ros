@@ -1,4 +1,5 @@
-// edit of https://roboticsbackend.com/roscpp-timer-with-ros-publish-data-at-a-fixed-rate/
+// Código para publicação dos dados do sensor MS4525
+// Créditos/espelhado em: https://roboticsbackend.com/roscpp-timer-with-ros-publish-data-at-a-fixed-rate/
 #include <ros/ros.h>
 
 #include <std_msgs/Float64.h>
@@ -92,12 +93,12 @@ public:
             size_t returned = read(fd, bytes, 4);
             char status = (bytes[0] & 0xC0) >> 6;
 
-	    if(returned == -1 || returned == 0) {
-		    valid = 0;
-		    return;
-	    }
+            if (returned == -1 || returned == 0) {
+                valid = 0;
+                return;
+            }
 
-            if(status == 0)
+            if (status == 0)
             {
                 int dp_raw = 0, dT_raw = 0;
                 dp_raw = (bytes[0] << 8) + bytes[1];
@@ -110,20 +111,20 @@ public:
                 float diff_press_pa_raw = diff_press_PSI * PSI_to_Pa;
                 double airspeed_aux = calc_indicated_airspeed(diff_press_pa_raw);
 
-		if(airspeed_aux >= 0)
-		{
+                if (airspeed_aux >= 0)
+                {
 
-                	float airspeed_to_remove = avg[current_avg_index]; // Pega o valor para remover da soma para média móvel
-	                sum_avg -= airspeed_to_remove;                     // Remove o valor da soma da média
-	                avg[current_avg_index] = airspeed_aux;             // Coloca o novo valor no vetor 
-	                sum_avg += airspeed_aux;                           // Adiciona o novo valor na soma da média
-	                current_avg_index = (current_avg_index + 1) % 20;  // Calcula o novo índice de remoção do vetor de valores
-	
-	                airspeed = sum_avg / 20;
-	                temp = temperature;
-	                valid = 1;
-		}        
-	    } else {
+                    float airspeed_to_remove = avg[current_avg_index]; // Pega o valor para remover da soma para média móvel
+                    sum_avg -= airspeed_to_remove;                     // Remove o valor da soma da média
+                    avg[current_avg_index] = airspeed_aux;             // Coloca o novo valor no vetor
+                    sum_avg += airspeed_aux;                           // Adiciona o novo valor na soma da média
+                    current_avg_index = (current_avg_index + 1) % 20;  // Calcula o novo índice de remoção do vetor de valores
+
+                    airspeed = sum_avg / 20;
+                    temp = temperature;
+                    valid = 1;
+                }
+            } else {
                 valid = 0;
             }
         }
@@ -134,7 +135,7 @@ public:
     }
     void publishData()
     {
-        if(valid && avg[19] != 1024)
+        if (valid && avg[19] != 1024)
         {
             msg.indicated_airspeed = airspeed;
             msg.temperature = temp;

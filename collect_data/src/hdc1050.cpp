@@ -1,4 +1,5 @@
-// edit of https://roboticsbackend.com/roscpp-timer-with-ros-publish-data-at-a-fixed-rate/
+// Código para publicação dos dados do sensor HDC1050
+// Créditos/espelhado em: https://roboticsbackend.com/roscpp-timer-with-ros-publish-data-at-a-fixed-rate/
 #include <ros/ros.h>
 
 #include <std_msgs/Float64.h>

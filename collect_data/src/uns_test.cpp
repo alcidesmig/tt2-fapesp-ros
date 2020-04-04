@@ -1,3 +1,4 @@
+// Código teste para rotação com Twist: falhou
 #include <ros/ros.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/Twist.h>
@@ -44,7 +45,7 @@ int main(int argc, char **argv)
     ros::Rate rate(20.0);
 
     // wait for FCU connection
-    while(ros::ok() && !current_state.connected)
+    while (ros::ok() && !current_state.connected)
     {
         ros::spinOnce();
         rate.sleep();
@@ -66,7 +67,7 @@ int main(int argc, char **argv)
     vel.angular.z = 0;
 
     //send a few setpoints before starting
-    for(int i = 100; ros::ok() && i > 0; --i)
+    for (int i = 100; ros::ok() && i > 0; --i)
     {
         local_pos_pub.publish(pose);
         ros::spinOnce();
@@ -81,12 +82,12 @@ int main(int argc, char **argv)
 
     ros::Time last_request = ros::Time::now();
 
-    while(ros::ok())
+    while (ros::ok())
     {
-        if( current_state.mode != "OFFBOARD" &&
+        if ( current_state.mode != "OFFBOARD" &&
                 (ros::Time::now() - last_request > ros::Duration(5.0)))
         {
-            if( set_mode_client.call(offb_set_mode) &&
+            if ( set_mode_client.call(offb_set_mode) &&
                     offb_set_mode.response.mode_sent)
             {
                 ROS_INFO("Offboard enabled");
@@ -95,10 +96,10 @@ int main(int argc, char **argv)
         }
         else
         {
-            if( !current_state.armed &&
+            if ( !current_state.armed &&
                     (ros::Time::now() - last_request > ros::Duration(5.0)))
             {
-                if( arming_client.call(arm_cmd) &&
+                if ( arming_client.call(arm_cmd) &&
                         arm_cmd.response.success)
                 {
                     ROS_INFO("Vehicle armed");
@@ -108,7 +109,7 @@ int main(int argc, char **argv)
         }
 
         vel.angular.z += 0.1;
-        if(pos.pose.position.z > 1.5)
+        if (pos.pose.position.z > 1.5)
         {
             local_vel_pub.publish(vel);
             ROS_INFO("Published");

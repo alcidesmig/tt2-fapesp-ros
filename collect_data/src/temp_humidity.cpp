@@ -1,4 +1,5 @@
-// edit of https://roboticsbackend.com/roscpp-timer-with-ros-publish-data-at-a-fixed-rate/
+// Arquivo obsoleto: sensor HD1050
+
 #include <ros/ros.h>
 #include <std_msgs/Float64.h>
 #include <vector>
@@ -64,8 +65,8 @@ public:
     {
         try
         {
-            unsigned short hum  = i2c_read(0x40,1,20000);
-            humidity = hum  * (100.0/65536.0);
+            unsigned short hum  = i2c_read(0x40, 1, 20000);
+            humidity = hum  * (100.0 / 65536.0);
 
             return true;
         }
@@ -76,7 +77,7 @@ public:
     }
     void publishTemperature()
     {
-        if(readTemperatureSensorData())
+        if (readTemperatureSensorData())
         {
             std_msgs::Float64 msg;
             msg.data = humidity;

@@ -1,8 +1,4 @@
-/**
- * @file offb_node.cpp
- * @brief Offboard control example node, written with MAVROS version 0.19.x, PX4 Pro Flight
- * Stack and tested in Gazebo SITL
- */
+// Código teste: coleta livre de dados
 
 #include <ros/ros.h>
 
@@ -113,12 +109,12 @@ int main(int argc, char **argv)
                               ("mavros/global_position/global", 1, get_gps_value);
     ros::Subscriber rel_alt_sub = nh.subscribe<std_msgs::Float64>("mavros/global_position/rel_alt", 1, get_rel_alt);
 
-     // Pegar a posição do drone
+    // Pegar a posição do drone
     ros::Subscriber pos_sub = nh.subscribe<geometry_msgs::PoseStamped>("mavros/local_position/pose", 1, get_pos);
     ros::Subscriber lidar_sub = nh.subscribe<sensor_msgs::Range>("mavros/distance_sensor/lidarlite_pub", 1, get_lidar);
 
     fp = fopen(FILENAME, "a+");
-    if(fp != NULL)
+    if (fp != NULL)
     {
         fprintf(fp, "Zero do sensor de airspeed: indicado(%f) true(%f) - Dados válidos: %d", ms4525.indicated_airspeed, calc_true_airspeed_from_indicated(ms4525.indicated_airspeed, pressure_ambient.fluid_pressure, ms4525.temperature), ms4525.valid);
     }
@@ -126,33 +122,33 @@ int main(int argc, char **argv)
 
     ros::Rate rate(10.0);
 
-    while(ros::ok())
+    while (ros::ok())
     {
         try
         {
             cont++;
-            if(cont > 100)
+            if (cont > 100)
             {
                 fclose(fp);
                 fp = fopen(FILENAME, "a+");
-                if(fp == NULL)
+                if (fp == NULL)
                 {
                     return 0;
                 }
             }
             float indicated_airspeed = ms4525.indicated_airspeed;
             float true_airspeed = calc_true_airspeed_from_indicated(indicated_airspeed, pressure_ambient.fluid_pressure, ms4525.temperature);
-            if(fp != NULL)
+            if (fp != NULL)
             {
-                if(!ms4525.valid)
+                if (!ms4525.valid)
                 {
                     fprintf(fp, "Dados do MS4525 inválidos\n");
                 }
-                if(!hdc1050.valid)
+                if (!hdc1050.valid)
                 {
                     fprintf(fp, "Dados do HDC1050 inválidos\n");
                 }
-                if(hdc1050.valid && ms4525.valid)
+                if (hdc1050.valid && ms4525.valid)
                 {
                     fprintf(fp,
                             "%f;%f;%f;%f;%f;%f;%f;%f;%f;%f;%d\n",
@@ -161,12 +157,12 @@ int main(int argc, char **argv)
                 }
             }
         }
-        catch(...)
+        catch (...)
         {
             ROS_INFO("ERROR - COLLECTING");
         }
 
-	ROS_INFO("Distance\n\tLidar: %f\n\tPose: %f\n\tRel_alt: %f", lidar.range, pos.pose.position.z, rel_alt);
+        ROS_INFO("Distance\n\tLidar: %f\n\tPose: %f\n\tRel_alt: %f", lidar.range, pos.pose.position.z, rel_alt);
 
         ros::spinOnce();
         rate.sleep();

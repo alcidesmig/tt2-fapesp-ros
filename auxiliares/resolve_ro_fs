@@ -1,1 +1,2 @@
+// A ser rodado no filesystem da raspberry caso ocorra o problema de bootar com o sistema de arquivos em read only.
 fsck.ext4 -f /dev/mmcblk0p2

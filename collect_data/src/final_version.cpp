@@ -282,7 +282,7 @@ std::string parse_for_json(char * data_1, char * data_2, char * data_3) {
 	std::string ret = ""
 	                  "{"
 	                  "\t\"id\": \"" + id_coleta_s + "\","
-	                  "\t\"temp_1\": \"" + temp_1 + "\""
+	                  "\t\"temp_1\": \"" + temp_1 + "\","
 	                  "\t\"indicated_airspeed_1\": \"" + indicated_airspeed_1 + "\","
 	                  "\t\"true_airspeed_1\": \"" + true_airspeed_1 + "\","
 	                  "\t\"humidity_1\": \"" + humidity_1 + "\","
